@@ -34,7 +34,7 @@ class Layer:
         return np.maximum(0, Z)
 
     def _softmax(self, Z, deriv=False):
-        y = np.exp(Z)
+        y = np.exp(Z - Z.max())
         return y / np.sum(y, axis=1, keepdims=True)
 
     def forward(self, Z):
@@ -60,7 +60,7 @@ class NeuralNetwork:
         self._loss = self._mse
         if loss == 'cross_entropy':
             self._loss = self._cross_entropy
-            self._y = self.one_hot_encode(self._y)
+        self._y = self.one_hot_encode(self._y)
         
         self._total_samples = 1. / self._y.shape[0]
         self._total_layers = len(layers)
@@ -73,10 +73,9 @@ class NeuralNetwork:
         return np.sum(E**2) * self._total_samples
 
     def _cross_entropy(self, E):
-        # return -(np.sum(self._y * np.log(E.clip(min=1e-10))) * self._total_samples)
-        E = E.clip(min=1e-10)
+        E = E.clip(min=1e-12)
         y = self._y
-        return np.sum(np.dot(np.log(E), y.T) + np.dot(np.log(1-E), (1-y).T)) * self._total_samples
+        return -(np.sum(y * np.log(E) + (1-y) * np.log(1-E))) * self._total_samples
     
     def _forward(self, Z):
         for i, layer in enumerate(self._layers):
@@ -133,7 +132,6 @@ class NeuralNetwork:
             
             # Loss
             E = Z - self._y  # error
-            # E = -(np.divide(self._y, Z) - np.divide(1 - self._y, 1 - Z))
             
             # Backward / Backprop
             self._backward(E)
@@ -143,7 +141,6 @@ class NeuralNetwork:
 
             # Cost
             total_error = self._loss(E)
-            print(total_error)
             if np.abs(total_expected_error-total_error) < 1e-15:
                 return np.array(error_step)
             total_expected_error = total_error
@@ -151,7 +148,4 @@ class NeuralNetwork:
         return np.array(error_step)
 
     def predict(self, Z):
-        Z = self._forward(Z)
-        if self._loss == self._cross_entropy:
-            return np.argmax(Z, axis=1)
-        return Z
+        return np.argmax(self._forward(Z), axis=1)
