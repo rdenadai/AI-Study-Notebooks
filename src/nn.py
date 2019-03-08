@@ -30,19 +30,23 @@ class Layer:
             return 1. * (Z > 0)
         return np.maximum(0, Z)
 
+    def _softmax(Z):
+        exp_scores = np.exp(Z)
+        return exp_scores / np.sum(exp_scores, axis=1, keepdims=True)
+
     def forward(self, Z, active=True):
         self.A = np.dot(self.W, Z) + self.B
         if active:
             self.A = self._activation(self.A)
         return self.A
-    
+
     def E_grad(self, E):
         return E * self._activation(self.A, deriv=True)
 
-    
+
 class MultiLayerPerceptron:
-    
-    def __init__(self, layers, X, y):
+
+    def __init__(self, layers, X, y, loss='MSE'):
         # That is why we seed the generator - to make sure that we always get the same random numbers.
         np.random.seed(0)
         # Initialization
@@ -52,18 +56,28 @@ class MultiLayerPerceptron:
         self._total_samples = 1. / self._y.shape[1]
         self._total_layers = len(layers)
         self._mem_weights = {}
-    
-    def _mse(self, Z):
+        self._loss = self._mse
+        if loss == 'cross_entropy':
+            self._loss = self._cross_entropy
+
+    def _mse(self, Z, y):
         return np.sum(Z**2) * self._total_samples
-    
+
+    def _cross_entropy(self, Z, y):
+        # Clipping value
+        minval = 0.000000000001
+        # Number of samples
+        m = y.shape[0]
+        return -1/m * np.sum(y * np.log(Z.clip(min=minval)))
+
     def train(self, epochs=1500, lr=1e-3, batch_size=32):
         error_step = []
         total_expected_error = 0
-        
+
         m = self._total_samples
         for ep, epoch in enumerate(range(epochs)):
             S = self._X.copy()
-            
+
             # Forward
             Z = self.predict(S)
 
@@ -106,15 +120,15 @@ class MultiLayerPerceptron:
                 W, B = self._mem_weights[f'{layer}']
                 layer.W -= lr * W
                 layer.B -= lr * B
-            
+
             # Cost
-            total_error = self._mse(E)
+            total_error = self._loss(E)
             if np.abs(total_expected_error-total_error) < 1e-15:
                 return np.array(error_step)
             total_expected_error = total_error
             error_step.append(total_error)
         return np.array(error_step)
-        
+
     def predict(self, Z):
         for i, layer in enumerate(self._layers):
             Z = layer.forward(Z, active=True if i < len(self._layers)-1 else False)
