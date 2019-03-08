@@ -76,8 +76,8 @@ class MultiLayerPerceptron:
             last_layer = self._layers[-1]
             delta = E_prev
             self._mem_weights[f'{last_layer}'] = (
-                m * np.dot(delta, self._layers[-2].A.T), # dW 
-                m * np.sum(delta, axis=1, keepdims=True) # dB
+                m * np.dot(delta, self._layers[-2].A.T),  # dW 
+                m * np.sum(delta, axis=1, keepdims=True)  # dB
             )
 
             # Hidden Layers
