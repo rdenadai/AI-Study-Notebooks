@@ -46,7 +46,7 @@ class Layer:
         return np.clip(E * self._activation(self.A, deriv=True), -1, 1)
 
 
-class NeuralNetwork:
+class VanillaNeuralNetwork:
 
     def __init__(self, layers, X, y, loss='MSE'):
         # That is why we seed the generator - to make sure that we always get the same random numbers.
@@ -67,7 +67,7 @@ class NeuralNetwork:
         self._mem_weights = {}
 
     def one_hot_encode(self, y):
-        return pd.get_dummies(y).as_matrix()
+        return pd.get_dummies(y).values
     
     def _mse(self, E):
         return np.sum(E**2) * self._total_samples
@@ -92,7 +92,7 @@ class NeuralNetwork:
             m * self._layers[-2].A.T.dot(delta),  # dW 
             m * np.sum(delta, axis=0)  # dB
         )
-        
+
         # Hidden Layers
         k = len(self._layers)-2
         for layer in reversed(self._layers[1:len(self._layers)-1]):
@@ -141,7 +141,7 @@ class NeuralNetwork:
 
             # Cost
             total_error = self._loss(E)
-            if np.abs(total_expected_error-total_error) < 1e-15:
+            if np.abs(total_expected_error-total_error) < 1e-8:
                 return np.array(error_step)
             total_expected_error = total_error
             error_step.append(total_error)
