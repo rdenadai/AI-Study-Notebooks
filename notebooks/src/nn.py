@@ -60,14 +60,13 @@ class Dense(Layer):
         return self.A
 
     def gradient(self, error):
-        # Avoid exploding gradients
-        return np.clip(error * self._activation(self.A, deriv=True), -1, 1)
-
+        # Clipping to avoid exploding gradients
+        return np.clip(error * self._activation(self.A, deriv=True), -1.5, 1.5)
 
 
 class NeuralNetwork:
 
-    def __init__(self, layers, X, y, loss='MSE'):
+    def __init__(self, layers, X, y, tol=1e-4, loss='mse'):
         # That is why we seed the generator - to make sure that we always get the same random numbers.
         np.random.seed(0)
         
@@ -81,6 +80,7 @@ class NeuralNetwork:
         self._X = X
         self._y = y
         
+        self._tol = tol
         self._loss = self._mse
         if loss == 'cross_entropy':
             self._loss = self._cross_entropy
@@ -95,13 +95,13 @@ class NeuralNetwork:
     def _one_hot_encode(self, y):
         return pd.get_dummies(y).values
     
-    def _mse(self, y, E):
-        return np.sum(E**2) * self._total_samples
+    def _mse(self, y, Z):
+        return np.sum((Z-y)**2) * self._total_samples
 
-    def _cross_entropy(self, y, E):
-        E = E.clip(min=1e-12)
-        # y = self._y
-        return -(np.sum(y * np.log(E) + (1-y) * np.log(1-E))) * self._total_samples
+    def _cross_entropy(self, y, Z):
+        Z = Z.clip(min=1e-12)
+        return -np.sum(y * np.log(Z)) * self._total_samples
+        # return -(np.sum(y * np.log(err) + (1-y) * np.log(1-err))) * self._total_samples
     
     def _forward(self, Z):
         for i, layer in enumerate(self._layers):
@@ -138,11 +138,11 @@ class NeuralNetwork:
             np.sum(delta, axis=0)  # dB
         )
 
-    def _update_weights(self, lr):
+    def _update_weights(self, m, lr):
         for layer in reversed(self._layers):
             W, B = self._mem_weights[f'{layer}']
-            layer.W -= lr * (W * self._total_samples)
-            layer.B -= lr * (B * self._total_samples)
+            layer.W -= lr * (W * m)
+            layer.B -= lr * (B * m)
 
     def _shuffle(self, X, y):
         permutation = np.random.permutation(X.shape[0])
@@ -154,38 +154,41 @@ class NeuralNetwork:
 
         # Batch size iteration
         mb = math.ceil(self._X.shape[0] / batch_size)
+        m = 1. / batch_size
 
+        iter_n = 0
         for ep, epoch in enumerate(range(epochs)):
             # Shuffle dataset in each epoch
             X, y = self._shuffle(self._X.copy(), self._y.copy())
 
-            # Mini-batch
+            # Mini batch
             total_error = 0
             k = 0
             for _ in range(mb):
-                # Cropping
-                ini = k * batch_size
-                end = (k + 1) * batch_size
-                cX = X[ini:end, :].copy()
-                cy = y[ini:end, :].copy()
+                # Mini batch crop
+                ini, end = k * batch_size, (k + 1) * batch_size
+                batch_X, batch_y = X[ini:end, :], y[ini:end, :]
                 k += 1
 
                 # Forward
-                Z = self._forward(cX)
+                Z = self._forward(batch_X)
                 
                 # Loss
-                E = Z - cy  # error
+                err = Z - batch_y  # error
                 
                 # Backward / Backprop
-                self._backward(cX, E)
+                self._backward(batch_X, err)
 
                 # Update weights and bias
-                self._update_weights(lr)
+                self._update_weights(m, lr)
 
                 # Cost
-                total_error += self._loss(cy, E)
-
-            if np.abs(total_expected_error-total_error) < 1e-8:
+                total_error += self._loss(batch_y, Z)
+            
+            if np.abs(total_expected_error-total_error) < self._tol:
+                iter_n += 1
+            # Early stop, no improvements after 10 iterations
+            if iter_n >= 10:
                 return np.array(error_step)
             total_expected_error = total_error
             error_step.append(total_error)
