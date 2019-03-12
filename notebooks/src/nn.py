@@ -16,59 +16,102 @@ class Layer:
     
     def __repr__(self):
         return f'Layer: {self._name}'
+    
+    def forward(self):
+        pass
+
+    def backward(self, grad):
+        pass
+
+
+class ReLU(Layer):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, Z):
+        return np.maximum(0, Z)
+
+    def backward(self, Z, grad):
+        return grad * (Z > 0)
+
+
+class Sigmoid(Layer):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, Z):
+        return 1. / (1 + np.exp(-Z))
+    
+    def backward(self, Z, grad):
+        return Z * (1 - Z)
+
+
+class Tahn(Layer):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, Z):
+        return np.tanh(Z)
+    
+    def backward(self, Z, grad):
+        return 1 - (np.tanh(Z)**2)
+
+
+class Softmax(Layer):
+
+    def __init__(self):
+        super().__init__()
+
+    def forward(self, Z):
+        y = np.exp(Z - np.max(Z, axis=1, keepdims=True))
+        return y / np.sum(y, axis=1, keepdims=True)
+    
+    def backward(self, Z, grad):
+        return grad
 
 
 class Dense(Layer):
 
-    def __init__(self, inputs=1, outputs=1, activation='sigmoid'):
+    def __init__(self, inputs=1, outputs=1, activation=ReLU()):
         super().__init__()
         self.W = np.random.rand(inputs, outputs) * np.sqrt(2 / (outputs + inputs))
         self.B = np.zeros((1, outputs))
+        self.Z = None
         self.A = np.zeros((inputs, self.W.shape[0]))
         
-        if activation == 'sigmoid':
-            self._activation = self._sigmoid
-        elif activation == 'relu':
-            self._activation = self._relu
-        elif activation == 'tahn':
-            self._activation = self._tahn
-        elif activation == 'softmax':
-            self._activation = self._softmax
-
-    def _sigmoid(self, Z, deriv=False):
-        if deriv:
-            return Z * (1 - Z)
-        return 1. / (1 + np.exp(-Z))
-    
-    def _relu(self, Z, deriv=False):
-        if deriv:
-            return 1. * (Z > 0)
-        return np.maximum(0, Z)
-
-    def _tahn(self, Z, deriv=False):
-        K = np.tanh(Z)
-        if deriv:
-            return 1 - (K**2)
-        return K
-
-    def _softmax(self, Z, deriv=False):
-        y = np.exp(Z - Z.max())
-        return y / np.sum(y, axis=1, keepdims=True)
+        if isinstance(activation, Sigmoid):
+            self._activation = activation
+        elif isinstance(activation, ReLU):
+            self._activation = activation
+        elif isinstance(activation, Tahn):
+            self._activation = activation
+        elif isinstance(activation, Softmax):
+            self._activation = activation
 
     def forward(self, Z):
-        self.A = self._activation(Z.dot(self.W) + self.B)
+        self.Z = Z
+        self.A = self._activation.forward(Z.dot(self.W) + self.B)
         return self.A
 
-    def gradient(self, error):
-        # Clipping to avoid exploding gradients
-        return np.clip(error * self._activation(self.A, deriv=True), -1.5, 1.5)
+    def backward(self, Z, delta_in):
+        delta_out = delta_in.dot(self.W.T)
+        act = self._activation.backward(Z, delta_out)
+        return (
+            np.clip(act, -1, 1),  # grad
+            act.T.dot(delta_in),  # dW 
+            np.sum(delta_in, axis=0)  # dB
+        )
 
 
 class NeuralNetwork:
 
     def __init__(self, layers, X, y, tol=1e-4, loss='mse'):
-        # That is why we seed the generator - to make sure that we always get the same random numbers.
-        np.random.seed(0)
+        # Seed the generator - to make sure that we always get the same random numbers.
+        # 42 the meaning of life
+        np.random.seed(42)
         
         # Naming the layers (indexing)
         self._total_layers = len(layers)
@@ -101,42 +144,17 @@ class NeuralNetwork:
     def _cross_entropy(self, y, Z):
         Z = Z.clip(min=1e-12)
         return -np.sum(y * np.log(Z)) * self._total_samples
-        # return -(np.sum(y * np.log(err) + (1-y) * np.log(1-err))) * self._total_samples
     
     def _forward(self, Z):
         for i, layer in enumerate(self._layers):
             Z = layer.forward(Z)
         return Z
 
-    def _backward(self, X, E_prev):
-        # First Layer
-        last_layer = self._layers[-1]
-        delta = E_prev
-        self._mem_weights[f'{last_layer}'] = (
-            self._layers[-2].A.T.dot(delta),  # dW 
-            np.sum(delta, axis=0)  # dB
-        )
-
-        # Hidden Layers
-        k = len(self._layers)-2
-        for layer in reversed(self._layers[1:len(self._layers)-1]):
-            E_prev = E_prev.dot(last_layer.W.T)
-            last_layer = layer
-            delta = last_layer.gradient(E_prev)
-            self._mem_weights[f'{last_layer}'] = (
-                self._layers[(k-1)].A.T.dot(delta),  # dW 
-                np.sum(delta, axis=0)  # dB
-            )
-            k -= 1
-
-        # Last Layer
-        E_prev = E_prev.dot(last_layer.W.T)
-        last_layer = self._layers[0]
-        delta = last_layer.gradient(E_prev)
-        self._mem_weights[f'{last_layer}'] = (
-            X.T.dot(delta),  # dW
-            np.sum(delta, axis=0)  # dB
-        )
+    def _backward(self, layer_inputs, grad):
+        for layer_index in range(self._total_layers)[::-1]:
+            layer = self._layers[layer_index]
+            grad, dW, dB = layer.backward(layer_inputs[layer_index], grad)
+            self._mem_weights[f'{layer}'] = (dW, dB)
 
     def _update_weights(self, m, lr):
         for layer in reversed(self._layers):
@@ -173,16 +191,17 @@ class NeuralNetwork:
                 # Forward
                 Z = self._forward(batch_X)
                 
-                # Loss
-                err = Z - batch_y  # error
+                # Error
+                delta_out = Z - batch_y
                 
                 # Backward / Backprop
-                self._backward(batch_X, err)
+                layer_inputs = [batch_X] + [layer.A for layer in self._layers]
+                self._backward(layer_inputs, delta_out)
 
                 # Update weights and bias
                 self._update_weights(m, lr)
 
-                # Cost
+                # Loss
                 total_error += self._loss(batch_y, Z)
             
             if np.abs(total_expected_error-total_error) < self._tol:
