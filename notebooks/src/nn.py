@@ -150,17 +150,17 @@ class NeuralNetwork:
         return pd.get_dummies(y).values
 
     def _mse(self, y, Z):
-        loss = Z - y
-        cost = np.sum(loss**2) * self._total_samples
+        loss = Z - y  # loss
+        cost = np.sum(loss**2) * self._total_samples  # cost
         return loss, cost
 
     def _cross_entropy(self, y, Z):
-        loss = Z - y
+        loss = Z - y  # loss
         Z = np.clip(Z, 1e-12, 1 - 1e-12)
         if self._classes == 2:
-            cost = -np.sum((y * np.log(Z)) + ((1 - y) * np.log(1 - Z)))
+            cost = -np.sum((y * np.log(Z)) + ((1 - y) * np.log(1 - Z)))  # cost (binary)
         else:
-            cost = -np.sum(y * np.log(Z)) * self._total_samples
+            cost = -np.sum(y * np.log(Z)) * self._total_samples  # cost (multiclass)
         return loss, cost
 
     def _forward(self, Z):
