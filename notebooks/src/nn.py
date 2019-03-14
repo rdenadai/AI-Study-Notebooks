@@ -17,7 +17,7 @@ class Layer:
     def __repr__(self):
         return f'Layer: {self._name}'
     
-    def forward(self, Z):
+    def forward(self, Z, train):
         return Z
 
     def backward(self, Z, grad):
@@ -29,7 +29,7 @@ class ReLU(Layer):
     def __init__(self):
         super().__init__()
 
-    def forward(self, Z):
+    def forward(self, Z, train):
         return np.maximum(0, Z)
 
     def backward(self, Z, grad):
@@ -41,7 +41,7 @@ class Sigmoid(Layer):
     def __init__(self):
         super().__init__()
 
-    def forward(self, Z):
+    def forward(self, Z, train):
         K = Z - np.max(Z, axis=1, keepdims=True)
         return 1. / (1 + np.exp(-K))
 
@@ -54,7 +54,7 @@ class Tahn(Layer):
     def __init__(self):
         super().__init__()
 
-    def forward(self, Z):
+    def forward(self, Z, train):
         return np.tanh(Z)
 
     def backward(self, Z, grad):
@@ -66,7 +66,7 @@ class Softmax(Layer):
     def __init__(self):
         super().__init__()
 
-    def forward(self, Z):
+    def forward(self, Z, train):
         K = np.exp(Z - np.max(Z, axis=1, keepdims=True))
         return K / np.sum(K, axis=1, keepdims=True)
 
@@ -95,18 +95,40 @@ class Dense(Layer):
         inp, out = self.inputs, self.outputs
         self.W = np.random.rand(inp, out) * np.sqrt(2 / (inp + out))
         self.B = np.zeros((1, out))
-        self.Z = None
         self.A = np.zeros((inp, self.W.shape[0]))
 
-    def forward(self, Z):
-        self.Z = Z
-        self.A = self._activation.forward(Z.dot(self.W) + self.B)
+    def forward(self, Z, train):
+        self.A = self._activation.forward(Z.dot(self.W) + self.B, train)
         return self.A
 
     def backward(self, A, loss):
         grad = self._activation.backward(self.A, loss)
         return (
             np.clip(loss.dot(self.W.T), -1, 1),  # dE
+            A.T.dot(grad),  # dW 
+            np.sum(grad, axis=0, keepdims=True)  # dB
+        )
+
+
+class Dropout(Dense):
+
+    def __init__(self, inputs=1, outputs=1, activation=ReLU(), neuron_drop=.5):
+        super().__init__(inputs, outputs, activation)
+        self._neuron_drop = neuron_drop
+        self._U = None
+
+    def forward(self, Z, train):
+        self.A = self._activation.forward(Z.dot(self.W) + self.B, train)
+        if train:
+            self._U = np.random.binomial(1, self._neuron_drop, size=self.A.shape)
+            # self._U = (np.random.rand(*self.A.shape) < self._neuron_drop) / self._neuron_drop  # dropout mask
+            self.A *= self._U  # drop!
+        return self.A
+
+    def backward(self, A, dZ):
+        grad = self._activation.backward(self.A, dZ) * self._U
+        return (
+            np.clip(dZ.dot(self.W.T), -1, 1),  # new dZ
             A.T.dot(grad),  # dW 
             np.sum(grad, axis=0, keepdims=True)  # dB
         )
@@ -145,7 +167,7 @@ class NeuralNetwork:
         self._mem_weights = {}
 
     def predict(self, Z):
-        return np.argmax(self._forward(Z), axis=1)
+        return np.argmax(self._forward(Z, False), axis=1)
 
     def _one_hot_encode(self, y):
         return pd.get_dummies(y).values
@@ -163,20 +185,20 @@ class NeuralNetwork:
         else:
             cost = -np.sum(y * np.log(Z)) * self._total_samples  # cost (multiclass)
         return loss, cost
-    
+
     def _l2_regularization(self):
         W_sum = np.sum([np.sum(np.square(weights[0])) for k, weights in self._mem_weights.items()])
         return (self._l2_lambda / (2 * self._batch_size)) * W_sum
 
-    def _forward(self, Z):
+    def _forward(self, Z, train=True):
         for i, layer in enumerate(self._layers):
-            Z = layer.forward(Z)
+            Z = layer.forward(Z, train)
         return Z
 
-    def _backward(self, layer_inputs, loss):
+    def _backward(self, layer_inputs, dZ):
         for layer_index in range(self._total_layers)[::-1]:
             layer = self._layers[layer_index]
-            loss, dW, dB = layer.backward(layer_inputs[layer_index], loss)
+            dZ, dW, dB = layer.backward(layer_inputs[layer_index], dZ)
             self._mem_weights[f'{layer}'] = (dW, dB)
 
     def _update_weights(self):
@@ -217,14 +239,14 @@ class NeuralNetwork:
                 Z = self._forward(batch_X)
 
                 # Error
-                loss, cost = self._loss(batch_y, Z)
+                dZ, cost = self._loss(batch_y, Z)
                 
                 # L2 
                 cost += self._l2_regularization()
 
                 # Backward / Backprop
                 layer_inputs = [batch_X] + [layer.A for layer in self._layers]
-                self._backward(layer_inputs, loss)
+                self._backward(layer_inputs, dZ)
 
                 # Update weights and bias
                 self._update_weights()
