@@ -17,11 +17,11 @@ class Layer:
     def __repr__(self):
         return f'Layer: {self._name}'
     
-    def forward(self):
-        pass
+    def forward(self, Z):
+        return Z
 
-    def backward(self, grad):
-        pass
+    def backward(self, Z, grad):
+        return grad
 
 
 class ReLU(Layer):
@@ -46,7 +46,7 @@ class Sigmoid(Layer):
         return 1. / (1 + np.exp(-K))
 
     def backward(self, Z, grad):
-        return Z * (1 - Z)
+        return grad * (Z * (1 - Z))
 
 
 class Tahn(Layer):
@@ -58,7 +58,7 @@ class Tahn(Layer):
         return np.tanh(Z)
 
     def backward(self, Z, grad):
-        return 1 - (np.tanh(Z)**2)
+        return grad * (1 - (np.tanh(Z)**2))
 
 
 class Softmax(Layer):
@@ -114,7 +114,7 @@ class Dense(Layer):
 
 class NeuralNetwork:
 
-    def __init__(self, layers, X, y, epochs=1500, lr=1e-3, batch_size=32, loss='mse', tol=1e-4):
+    def __init__(self, layers, X, y, epochs=1500, lr=1e-3, batch_size=32, loss='mse', l2_lambda=1e-4, tol=1e-4):
         # Seed the generator - to make sure that we always get the same random numbers.
         # 42 the meaning of life
         np.random.seed(42)
@@ -137,6 +137,7 @@ class NeuralNetwork:
         self._loss = self._mse
         if loss == 'cross_entropy':
             self._loss = self._cross_entropy
+        self._l2_lambda = l2_lambda
         self._tol = tol
 
         # Internal
@@ -162,6 +163,10 @@ class NeuralNetwork:
         else:
             cost = -np.sum(y * np.log(Z)) * self._total_samples  # cost (multiclass)
         return loss, cost
+    
+    def _l2_regularization(self):
+        W_sum = np.sum([np.sum(np.square(weights[0])) for k, weights in self._mem_weights.items()])
+        return (self._l2_lambda / (2 * self._batch_size)) * W_sum
 
     def _forward(self, Z):
         for i, layer in enumerate(self._layers):
@@ -177,9 +182,10 @@ class NeuralNetwork:
     def _update_weights(self):
         m = 1. / self._batch_size
         lr = self._lr
+        l2_reg = (self._l2_lambda / m)
         for layer in reversed(self._layers):
             W, B = self._mem_weights[f'{layer}']
-            layer.W -= lr * (W * m)
+            layer.W -= (lr * (W * m)) + (l2_reg * W)
             layer.B -= lr * (B * m)
 
     def _shuffle(self, X, y):
@@ -212,6 +218,9 @@ class NeuralNetwork:
 
                 # Error
                 loss, cost = self._loss(batch_y, Z)
+                
+                # L2 
+                cost += self._l2_regularization()
 
                 # Backward / Backprop
                 layer_inputs = [batch_X] + [layer.A for layer in self._layers]
