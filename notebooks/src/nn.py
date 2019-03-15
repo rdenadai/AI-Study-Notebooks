@@ -71,7 +71,7 @@ class Softmax(Layer):
         return K / np.sum(K, axis=1, keepdims=True)
 
     def backward(self, Z, grad):
-        return grad
+        return grad * (1 - Z)
 
 
 class Dense(Layer):
@@ -126,10 +126,10 @@ class Dropout(Dense):
         return self.A
 
     def backward(self, A, dZ):
-        grad = self._activation.backward(self.A, dZ) * self._U
+        grad = self._activation.backward(self.A, dZ)
         return (
             np.clip(dZ.dot(self.W.T), -1, 1),  # new dZ
-            A.T.dot(grad),  # dW 
+            A.T.dot(grad * self._U),  # dW 
             np.sum(grad, axis=0, keepdims=True)  # dB
         )
 
@@ -148,9 +148,16 @@ class NeuralNetwork:
 
         # Initialization
         self._X = X
+        self.y = y
         self._y = self._one_hot_encode(y)
         self._classes = self._y.shape[1]
         self._layers = layers
+
+        # Internal        
+        self._mem_weights = {}
+        for layer_index in range(self._total_layers)[::-1]:
+            layer = self._layers[layer_index]
+            self._mem_weights[f'{layer}'] = (layer.W, layer.B)
 
         # Hyperparameters
         self._epochs = epochs
@@ -162,9 +169,7 @@ class NeuralNetwork:
         self._l2_lambda = l2_lambda
         self._tol = tol
 
-        # Internal
         self._total_samples = 1. / self._y.shape[0]
-        self._mem_weights = {}
 
     def predict(self, Z):
         return np.argmax(self._forward(Z, False), axis=1)
@@ -173,18 +178,23 @@ class NeuralNetwork:
         return pd.get_dummies(y).values
 
     def _mse(self, y, Z):
-        loss = Z - y  # loss
-        cost = np.sum(loss**2) * self._total_samples  # cost
+        # loss
+        loss = Z - y
+        # cost
+        cost = np.sum(loss**2) * self._total_samples
         return loss, cost
 
     def _cross_entropy(self, y, Z):
-        loss = Z - y  # loss
+        # loss
+        loss = Z - y
         Z = np.clip(Z, 1e-12, 1 - 1e-12)
         if self._classes == 2:
-            cost = -np.sum((y * np.log(Z)) + ((1 - y) * np.log(1 - Z)))  # cost (binary)
+            # cost (binary)
+            cost = -np.sum((y * np.log(Z)) + ((1 - y) * np.log(1 - Z)))
         else:
-            cost = -np.sum(y * np.log(Z)) * self._total_samples  # cost (multiclass)
-        return loss, cost
+            # cost (multiclass)
+            cost = -np.sum(y * np.log(Z))
+        return loss, np.squeeze(cost * self._total_samples)
 
     def _l2_regularization(self):
         W_sum = np.sum([np.sum(np.square(weights[0])) for k, weights in self._mem_weights.items()])
@@ -253,6 +263,12 @@ class NeuralNetwork:
 
                 # Loss
                 total_error += cost
+            
+            # Predict to check accuracy
+            y_pred = self.predict(self._X.copy())
+            acc = np.sum(y_pred == self.y) / self.y.shape[0]
+
+            print(f'Epoch {ep + 1}/{self._epochs} =======> loss: {np.round(total_error, 5)} - acc: {np.round(acc, 5)}')
 
             if np.abs(total_expected_error-total_error) < self._tol:
                 iter_n += 1
