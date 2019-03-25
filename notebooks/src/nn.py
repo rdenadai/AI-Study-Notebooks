@@ -96,9 +96,11 @@ class Dense(Layer):
         self.W = np.random.rand(inp, out) * np.sqrt(2 / (inp + out))
         self.B = np.zeros((1, out))
         self.A = np.zeros((inp, self.W.shape[0]))
+        self.Z = None
 
     def forward(self, Z, train):
-        self.A = self._activation.forward(Z.dot(self.W) + self.B, train)
+        self.Z = Z.dot(self.W) + self.B
+        self.A = self._activation.forward(self.Z, train)
         return self.A
 
     def backward(self, A, loss):
@@ -106,7 +108,7 @@ class Dense(Layer):
         return (
             np.clip(loss.dot(self.W.T), -1, 1),  # dE
             A.T.dot(grad),  # dW 
-            np.sum(grad, axis=0, keepdims=True)  # dB
+            np.mean(grad, axis=0, keepdims=True)  # dB
         )
 
 
@@ -197,7 +199,7 @@ class NeuralNetwork:
         return loss, np.squeeze(cost * self._total_samples)
 
     def _l2_regularization(self):
-        W_sum = np.sum([np.sum(np.square(weights[0])) for k, weights in self._mem_weights.items()])
+        W_sum = np.sum([np.sum(np.square(layer.W)) for layer in self._layers])
         return (self._l2_lambda / (2 * self._batch_size)) * W_sum
 
     def _forward(self, Z, train=True):
@@ -216,9 +218,9 @@ class NeuralNetwork:
         lr = self._lr
         l2_reg = (self._l2_lambda / m)
         for layer in reversed(self._layers):
-            W, B = self._mem_weights[f'{layer}']
-            layer.W -= (lr * (W * m)) + (l2_reg * W)
-            layer.B -= lr * (B * m)
+            dW, dB = self._mem_weights[f'{layer}']
+            layer.W -= (lr * (dW * m)) + (l2_reg * dW)
+            layer.B -= lr * (dB * m)
 
     def _shuffle(self, X, y):
         permutation = np.random.permutation(X.shape[0])
