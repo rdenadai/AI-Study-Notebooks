@@ -33,7 +33,10 @@ class ReLU(Layer):
         return np.maximum(0, Z)
 
     def backward(self, Z, grad):
-        return grad * (Z > 0)
+        K = Z.copy()
+        K[K <= 0] = 0
+        K[K > 0] = 1
+        return grad * K
 
 
 class Sigmoid(Layer):
@@ -196,11 +199,11 @@ class NeuralNetwork:
         else:
             # cost (multiclass)
             cost = -np.sum(y * np.log(Z))
-        return loss, np.squeeze(cost * self._total_samples)
+        return loss, np.squeeze(cost) * self._total_samples
 
     def _l2_regularization(self):
         W_sum = np.sum([np.sum(np.square(layer.W)) for layer in self._layers])
-        return (self._l2_lambda / (2 * self._batch_size)) * W_sum
+        return (self._l2_lambda / 2) * W_sum
 
     def _forward(self, Z, train=True):
         for i, layer in enumerate(self._layers):
@@ -216,10 +219,11 @@ class NeuralNetwork:
     def _update_weights(self):
         m = 1. / self._batch_size
         lr = self._lr
-        l2_reg = (self._l2_lambda / m)
+        l2_reg = self._l2_lambda
         for layer in reversed(self._layers):
             dW, dB = self._mem_weights[f'{layer}']
-            layer.W -= (lr * (dW * m)) + (l2_reg * dW)
+            dW += (l2_reg * layer.W)
+            layer.W -= (lr * (dW * m))
             layer.B -= lr * (dB * m)
 
     def _shuffle(self, X, y):
