@@ -23,7 +23,16 @@ class ReLU:
         return np.maximum(0, Z)
 
     def prime(self, Z):
-        return (Z > 0).astype(Z.dtype)
+        return (Z >= 0).astype(Z.dtype)
+
+
+class LeakyReLU:
+
+    def activation(self, Z):
+        return np.maximum(.025 * Z, Z)
+
+    def prime(self, Z):
+        return (Z > 0.025).astype(Z.dtype)
 
 
 class Sigmoid:
@@ -33,7 +42,8 @@ class Sigmoid:
         return 1. / (1 + np.exp(-K))
 
     def prime(self, Z):
-        return (Z * (1 - Z))
+        Z = self.activation(Z)
+        return Z * (1 - Z)
 
 
 class Tahn:
@@ -42,17 +52,18 @@ class Tahn:
         return np.tanh(Z)
 
     def prime(self, Z):
-        return (1 - (np.power(Z, 2)))
+        return 1 - (np.power(Z, 2))
 
 
 class Softmax:
 
     def activation(self, Z):
-        K = np.exp(Z - np.max(Z, axis=1, keepdims=True))
+        K = Z.copy()
+        K = np.exp(K - np.max(K, axis=1, keepdims=True))
         return K / np.sum(K, axis=1, keepdims=True)
 
     def prime(self, Z):
-        return (Z * (1 - Z))
+        return Z * (1 - Z)
 
 
 class Dense:
@@ -61,15 +72,7 @@ class Dense:
         self.name = 0
         self.inputs = inputs
         self.outputs = outputs
-
-        if isinstance(activation, Sigmoid):
-            self.activation_fn = activation
-        elif isinstance(activation, ReLU):
-            self.activation_fn = activation
-        elif isinstance(activation, Tahn):
-            self.activation_fn = activation
-        elif isinstance(activation, Softmax):
-            self.activation_fn = activation
+        self.activation_fn = activation
 
     def __str__(self):
         return f'Layer: {self._name}'
@@ -78,12 +81,18 @@ class Dense:
         return f'Layer: {self._name}'
 
     def init(self, name):
+        # Seed the generator - to make sure that we always get the same random numbers.
+        # 42 the meaning of life
+        np.random.seed(42)
+
         inp, out = self.inputs, self.outputs
         self._name = name
         self.W = np.random.rand(inp, out) * np.sqrt(2 / (inp + out))
         self.B = np.zeros((1, out))
         self.A = np.zeros((inp, self.W.shape[0]))
         self.Z = np.zeros((inp, self.W.shape[0]))
+        self.dA = np.zeros((inp, self.W.shape[0]))
+        self.dZ = np.zeros((inp, self.W.shape[0]))
 
 
 class NeuralNetwork:
@@ -99,6 +108,7 @@ class NeuralNetwork:
             layers[k].init(k)
 
         # Initialization
+        self._lambda = 1e+7
         self.error = []
         self._X = X.copy()
         self.y = y.copy()
@@ -131,40 +141,48 @@ class NeuralNetwork:
         return X[permutation], y[permutation]
 
     def __mse(self, Yh, y):
-        return np.mean((Yh - y)**2)
+        Z = np.clip(Yh, -self._lambda, self._lambda)
+        return np.sum((Z - y)**2) * self._total_samples
+
+    def __cross_entropy(self, Yh, y):
+        Z = np.clip(Yh, -self._lambda, self._lambda)
+        return -np.sum(y * np.log(Z)) * self._total_samples
 
     def __l2_regularization(self):
-        W_sum = np.sum([np.sum(np.square(layer.W)) for layer in self._layers])
-        return (self._l2_lambda / 2) * W_sum
+        return np.sum([(self._l2_lambda * .5) * np.sum(np.square(layer.W)) for layer in self._layers])
 
-    def __forward(self, Z):
+    def __forward(self, A):
         for i, layer in enumerate(self._layers):
-            layer.Z = Z  # Entrada da layer anterior ou X se for primeiro
-            Z = Z.dot(layer.W) + layer.B
-            A = layer.activation_fn.activation(Z)
             layer.A = A
-            Z = A
-        return Z
+            Z = np.dot(A, layer.W) + layer.B
+            A = layer.activation_fn.activation(Z)
+            layer.Z = Z
+        return A
 
-    def __backward(self, delta, batch_X):
+    def __backward(self, dA):
         for idx in range(self._total_layers)[::-1]:
             layer = self._layers[idx]
 
-            dW = np.dot(layer.Z.T, delta)
-            dB = np.mean(delta, axis=0, keepdims=True)
-            delta = np.dot(delta, layer.W.T) * layer.activation_fn.prime(layer.Z)
+            dZ = dA * layer.activation_fn.prime(layer.Z)
+            dW = np.dot(layer.A.T, dZ)
+            dB = np.mean(dZ, axis=0, keepdims=True)
+            dA = np.dot(dZ, layer.W.T)
+
+            # dW = np.dot(layer.Z.T, delta)
+            # dB = np.mean(delta, axis=0, keepdims=True)
+            # delta = (np.dot(delta, layer.W.T) * layer.activation_fn.prime(layer.A))
 
             self._mem_weights[f'{layer}'] = (dW, dB)
 
     def __update_weights(self):
-        m = 1. / self._batch_size
         lr = self._lr
         for layer in reversed(self._layers):
             dW, dB = self._mem_weights[f'{layer}']
-            # L2
-            # dW += (self._l2_lambda * layer.W)
-            layer.W -= (lr * (dW * m))
-            layer.B -= (lr * (dB * m))
+            # L2 regularization
+            dW += (self._l2_lambda * layer.W)
+            # weights update
+            layer.W -= lr * dW
+            layer.B -= lr * dB
 
     def predict(self, X):
         return np.argmax(self.__forward(X.copy()), axis=1)
@@ -192,8 +210,8 @@ class NeuralNetwork:
                 Yh = self.__forward(batch_X)
 
                 # Backward / Backprop
-                delta = ((Yh - batch_y) * self._layers[-1].activation_fn.prime(Yh))
-                self.__backward(delta, batch_X)
+                delta = -(np.divide(batch_y, Yh) - np.divide(1 - batch_y, 1 - Yh))
+                self.__backward(delta)
 
                 # Update weights and bias
                 self.__update_weights()
@@ -201,15 +219,15 @@ class NeuralNetwork:
             # Loss
             cost = self._loss(self.__forward(X), y)
             # L2 regularization
-            # cost += self.__l2_regularization()
-            if (ep + 1) % 10 == 0:
-                # Predict to check accuracy
-                y_pred = self.predict(X)
-                acc = np.sum(y_pred == np.argmax(y, axis=1)) / y.shape[0]
+            cost += self.__l2_regularization()
+            # Predict to check accuracy
+            y_pred = self.predict(X)
+            acc = np.sum(y_pred == np.argmax(y, axis=1)) / y.shape[0]
+            if (ep + 1) % 1 == 0:
                 print(f'Epoch {ep + 1}/{self._epochs} =======> Loss: {np.round(cost, 5)} - Acc: {np.round(acc, 5)}')
             self.error.append(cost)
             # Early stop, no improvements after 10 iterations
-            if np.abs(total_error-cost) < self._tol:
+            if np.abs(total_error-cost) < self._tol or acc == 1:
                 iter_n += 1
             total_error = cost
             if iter_n >= 10:
@@ -218,21 +236,28 @@ class NeuralNetwork:
 
 if __name__ == "__main__":
     # Make fake dataset!
-    # X, y = make_classification(n_samples=7500, n_features=2, n_classes=3, n_redundant=0, n_informative=2, n_clusters_per_class=1)
-    # X, y = make_circles(7500, noise=0.05)
-    X, y = make_moons(7500, noise=0.01)
+    # X, y = make_classification(n_samples=7500, n_features=2, n_classes=2, n_redundant=0, n_informative=2, n_clusters_per_class=1)
+    # X, y = make_circles(7500, noise=0.01)
+    X, y = make_moons(7500, random_state=42, noise=0.1)
     # Show plot!
     # scatter(X, y)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
 
     # Build, train and predict
     layers = (
-        Dense(2, 10),
-        Dense(10, 10),
-        Dense(10, 2, activation=Sigmoid())
+        Dense(2, 25),
+        Dense(25, 50),
+        Dense(50, 50),
+        Dense(50, 25),
+        Dense(25, 2, activation=Sigmoid())
     )
 
-    nn = NeuralNetwork(layers, X_train, y_train, epochs=200, lr=1e-1, batch_size=32)
+    nn = NeuralNetwork(
+        layers, X_train, y_train,
+        epochs=100,
+        lr=1e-1,
+        batch_size=32,
+        loss='cross_entropy')
     nn.train()
     y_pred = nn.predict(X_test)
 
@@ -250,7 +275,6 @@ if __name__ == "__main__":
     # print("Classification report for classifier \n%s\n" % (classification_report(y_test, y_pred)))
     # print('-' * 20)
     # print("Confusion matrix:\n%s" % confusion_matrix(y_test, y_pred))
-    #
     # if len(final_error):
     #     plt.figure(figsize=(8, 4))
     #     plt.subplot(1, 2, 1)
@@ -259,11 +283,10 @@ if __name__ == "__main__":
     #     plt.tight_layout()
     #     plt.show()
 
-
     classifier = MLPClassifier(
         max_iter=1500,
         solver='sgd',
-        batch_size=32,
+        batch_size=64,
         shuffle=True,
         learning_rate_init=1e-1,
         random_state=42
