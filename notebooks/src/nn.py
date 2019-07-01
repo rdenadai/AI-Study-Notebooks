@@ -1,286 +1,240 @@
-import math
 import numpy as np
 import pandas as pd
+from numba import njit
+from scipy.special import expit as sigmoid, softmax as softmax_n
+import matplotlib.pyplot as plt
+from sklearn.model_selection import train_test_split
+from sklearn.datasets import (
+    make_classification,
+    make_gaussian_quantiles,
+    make_moons,
+    make_circles,
+    make_blobs,
+    load_digits,
+)
 
 
-class Layer:
+DETERMINISTIC = 42
+N_SAMPLES = 2000
+N_CLASSES = 10
 
-    def __init__(self):
-        self._name = 0
-
-    def init(self, name):
-        self._name = name
-
-    def __str__(self):
-        return f'Layer: {self._name}'
-    
-    def __repr__(self):
-        return f'Layer: {self._name}'
-    
-    def forward(self, Z, train):
-        return Z
-
-    def backward(self, Z, grad):
-        return grad
+np.random.seed(DETERMINISTIC)
 
 
-class ReLU(Layer):
-
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, Z, train):
-        return np.maximum(0, Z)
-
-    def backward(self, Z, grad):
-        K = Z.copy()
-        K[K <= 0] = 0
-        K[K > 0] = 1
-        return grad * K
+def one_hot(Y):
+    return pd.get_dummies(Y).values
 
 
-class Sigmoid(Layer):
-
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, Z, train):
-        K = Z - np.max(Z, axis=1, keepdims=True)
-        return 1. / (1 + np.exp(-K))
-
-    def backward(self, Z, grad):
-        return grad * (Z * (1 - Z))
+def scatter(X, y):
+    plt.figure(figsize=(9, 4))
+    plt.title("Information")
+    plt.scatter(X[:, 0], X[:, 1], marker="o", c=y, s=25, edgecolor="k")
+    plt.show()
 
 
-class Tahn(Layer):
-
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, Z, train):
-        return np.tanh(Z)
-
-    def backward(self, Z, grad):
-        return grad * (1 - (np.tanh(Z)**2))
+def show_digit(X, y):
+    plt.figure(figsize=(8, 8))
+    for i, x in enumerate(X):
+        plt.subplot(5, 5, i + 1)
+        plt.title(f"Number: {y[i]}")
+        plt.imshow(x.reshape((8, 8)) * 255, cmap="gray")
+    plt.tight_layout()
+    plt.show()
 
 
-class Softmax(Layer):
+# X, y = make_blobs(
+#     N_SAMPLES,
+#     n_features=2,
+#     centers=N_CLASSES,
+#     cluster_std=2,
+#     random_state=DETERMINISTIC,
+# )
+# X, y = make_gaussian_quantiles(
+#     n_samples=N_SAMPLES, n_features=2, n_classes=N_CLASSES, random_state=DETERMINISTIC
+# )
+# X, y = make_moons(N_SAMPLES, noise=0.1, random_state=DETERMINISTIC)
+# X, y = make_circles(N_SAMPLES, noise=0.01, random_state=DETERMINISTIC)
+# X, y = make_classification(
+#     n_samples=N_SAMPLES,
+#     n_features=2,
+#     n_classes=N_CLASSES,
+#     n_redundant=0,
+#     n_informative=2,
+#     n_clusters_per_class=1,
+#     random_state=DETERMINISTIC,
+# )
+# scatter(X, y)
 
-    def __init__(self):
-        super().__init__()
+dig = load_digits()
+X, y = dig.data / 16.0, dig.target
 
-    def forward(self, Z, train):
-        K = np.exp(Z - np.max(Z, axis=1, keepdims=True))
-        return K / np.sum(K, axis=1, keepdims=True)
+X_train, y_train, X_test, y_test = train_test_split(
+    X, y, test_size=0.33, random_state=DETERMINISTIC
+)
+INPUT_N = X_train.shape[1]
 
-    def backward(self, Z, grad):
-        return grad * (1 - Z)
+# show_digit(X_train[0:10, :], X_test[0:10])
 
 
-class Dense(Layer):
+def sigmoid_prime(Z):
+    Z = sigmoid(Z.copy())
+    return Z * (1 - Z)
 
-    def __init__(self, inputs=1, outputs=1, activation=ReLU()):
-        super().__init__()
-        self.inputs = inputs
-        self.outputs = outputs
 
-        if isinstance(activation, Sigmoid):
-            self._activation = activation
-        elif isinstance(activation, ReLU):
-            self._activation = activation
-        elif isinstance(activation, Tahn):
-            self._activation = activation
-        elif isinstance(activation, Softmax):
-            self._activation = activation
+def relu(Z):
+    return np.maximum(0, Z.copy())
 
-    def init(self, name):
-        super().init(name)
-        inp, out = self.inputs, self.outputs
-        self.W = np.random.rand(inp, out) * np.sqrt(2 / (inp + out))
-        self.B = np.zeros((1, out))
-        self.A = np.zeros((inp, self.W.shape[0]))
-        self.Z = None
 
-    def forward(self, Z, train):
-        self.Z = Z.dot(self.W) + self.B
-        self.A = self._activation.forward(self.Z, train)
-        return self.A
+def relu_prime(Z):
+    Z = Z.copy()
+    Z[Z <= 0] = 0
+    Z[Z > 0] = 1
+    return Z
 
-    def backward(self, A, loss):
-        grad = self._activation.backward(self.A, loss)
-        return (
-            np.clip(loss.dot(self.W.T), -1, 1),  # dE
-            A.T.dot(grad),  # dW 
-            np.mean(grad, axis=0, keepdims=True)  # dB
+
+def softmax(Z):
+    # exps = np.exp(s - np.max(s, axis=0, keepdims=True))
+    # return exps / np.sum(exps, axis=0, keepdims=True)
+    return softmax_n(Z.copy(), axis=0)
+
+
+@njit(cache=True)
+def softmax_prime(Z):
+    # S = softmax(X.copy()).reshape(-1, 1)
+    # return np.diagflat(S) - np.dot(S, S.T)
+    return np.ones(Z.shape)
+
+
+@njit(cache=True)
+def cross_entropy(Yh, y):
+    n_samples = y.shape[1]
+    return (Yh - y) / n_samples
+
+
+def loss(Yh, y):
+    n_samples = y.shape[1]
+    logp = -np.log(Yh[y.argmax(axis=0), np.arange(n_samples)])
+    loss = np.sum(logp) / n_samples
+    return loss
+
+
+def l2_reg(l2, W):
+    return np.sum([l2 * 0.5 * np.sum(np.square(w)) for w in W])
+
+
+@njit(cache=True)
+def __shuffle(X, y):
+    permutation = np.random.permutation(X.shape[1])
+    return X[:, permutation], y[:, permutation]
+
+
+# W: output, input
+# B: output, 1
+# AC: func, func_deriv
+W = [
+    np.random.randn(100, INPUT_N) * np.sqrt(2 / (100 + INPUT_N)),
+    np.random.randn(100, 100) * np.sqrt(2 / (100 + 100)),
+    np.random.randn(100, 100) * np.sqrt(2 / (100 + 100)),
+    np.random.randn(100, 100) * np.sqrt(2 / (100 + 100)),
+    np.random.randn(100, 100) * np.sqrt(2 / (100 + 100)),
+    np.random.randn(100, 100) * np.sqrt(2 / (100 + 100)),
+    np.random.randn(100, 100) * np.sqrt(2 / (100 + 100)),
+    np.random.randn(N_CLASSES, 100) * np.sqrt(2 / (N_CLASSES + 100)),
+]
+B = [
+    np.zeros((100, 1)),
+    np.zeros((100, 1)),
+    np.zeros((100, 1)),
+    np.zeros((100, 1)),
+    np.zeros((100, 1)),
+    np.zeros((100, 1)),
+    np.zeros((100, 1)),
+    np.zeros((N_CLASSES, 1)),
+]
+AC = (
+    (relu, relu_prime),
+    (relu, relu_prime),
+    (relu, relu_prime),
+    (relu, relu_prime),
+    (relu, relu_prime),
+    (relu, relu_prime),
+    (sigmoid, sigmoid_prime),
+    (softmax, softmax_prime),
+)
+# print(W, B)
+
+# One hot encode
+X_test = one_hot(X_test)
+X = X_train.copy().T
+y = X_test.copy().T
+
+# params
+batch_size = 32
+lr = 1e-1
+l2 = 1e-1
+epochs = 1500
+layers = len(W)
+# Batch size iteration
+mb = np.ceil(X.shape[1] / batch_size).astype(np.int32)
+
+# Running epochs
+for epoch in range(epochs):
+    # Shuffle dataset in each epoch
+    X, y = __shuffle(X.copy(), y.copy())
+
+    r = 0
+    for _ in range(mb):
+        # Mini batch crop
+        ini, end = r * batch_size, (r + 1) * batch_size
+        batch_X, batch_y = X[:, ini:end], y[:, ini:end]
+        r += 1
+
+        A = batch_X.copy()
+        # Forward
+        ZL, AL = [], [A]
+        dB, dW = ([np.zeros(b.shape) for b in B], [np.zeros(w.shape) for w in W])
+        for w, b, ac in zip(W, B, AC):
+            Z = np.dot(w, A) + b
+            A = ac[0](Z)
+            ZL.append(Z)
+            AL.append(A)
+
+        # Backward
+        delta = cross_entropy(AL[-1], batch_y) * AC[-1][1](ZL[-1])
+
+        dB[-1] = np.sum(delta, axis=1, keepdims=True)
+        dW[-1] = np.dot(delta, AL[-2].T)
+        for k in range(2, layers + 1):
+            delta = np.dot(W[-k + 1].T, delta) * AC[-k][1](ZL[-k])
+            dB[-k] = np.sum(delta, axis=1, keepdims=True)
+            dW[-k] = np.dot(delta, AL[-k - 1].T)
+
+        # Update the weights!
+        k = layers - 1
+        for nb, nw in zip(reversed(dB), reversed(dW)):
+            W[k] -= lr * (nw * l2)
+            B[k] -= lr * (nb * l2)
+            k -= 1
+
+    Z = X.copy()
+    for w, b, ac in zip(W, B, AC):
+        Z = ac[0](np.dot(w, Z) + b)
+    err = loss(Z.copy(), y.copy())
+    pred = np.argmax(Z, axis=0)
+    acc = (
+        np.round(np.mean([y == p for y, p in zip(np.argmax(y, axis=0), pred)]), 2) * 100
+    )
+    if (epoch + 1) % 100 == 0:
+        print(
+            f"Epoch {epoch + 1}/{epochs} =======> Loss: {np.round(err, 5)} - Acc: {np.round(acc, 1)}%"
         )
 
+# print(W, B)
+Z = y_train.copy().T
+for w, b, ac in zip(W, B, AC):
+    Z = ac[0](np.dot(w, Z) + b)
+pred = np.argmax(Z, axis=0)
 
-class Dropout(Dense):
-
-    def __init__(self, inputs=1, outputs=1, activation=ReLU(), neuron_drop=.5):
-        super().__init__(inputs, outputs, activation)
-        self._neuron_drop = neuron_drop
-        self._U = None
-
-    def forward(self, Z, train):
-        self.A = self._activation.forward(Z.dot(self.W) + self.B, train)
-        if train:
-            self._U = np.random.binomial(1, self._neuron_drop, size=self.A.shape)
-            # self._U = (np.random.rand(*self.A.shape) < self._neuron_drop) / self._neuron_drop  # dropout mask
-            self.A *= self._U  # drop!
-        return self.A
-
-    def backward(self, A, dZ):
-        grad = self._activation.backward(self.A, dZ)
-        return (
-            np.clip(dZ.dot(self.W.T), -1, 1),  # new dZ
-            A.T.dot(grad * self._U),  # dW 
-            np.sum(grad, axis=0, keepdims=True)  # dB
-        )
-
-
-class NeuralNetwork:
-
-    def __init__(self, layers, X, y, epochs=1500, lr=1e-3, batch_size=32, loss='mse', l2_lambda=1e-4, tol=1e-4):
-        # Seed the generator - to make sure that we always get the same random numbers.
-        # 42 the meaning of life
-        np.random.seed(42)
-
-        # Naming the layers (indexing)
-        self._total_layers = len(layers)
-        for k in range(self._total_layers):
-            layers[k].init(k)
-
-        # Initialization
-        self._X = X
-        self.y = y
-        self._y = self._one_hot_encode(y)
-        self._classes = self._y.shape[1]
-        self._layers = layers
-
-        # Internal        
-        self._mem_weights = {}
-        for layer_index in range(self._total_layers)[::-1]:
-            layer = self._layers[layer_index]
-            self._mem_weights[f'{layer}'] = (layer.W, layer.B)
-
-        # Hyperparameters
-        self._epochs = epochs
-        self._lr = lr
-        self._batch_size = batch_size
-        self._loss = self._mse
-        if loss == 'cross_entropy':
-            self._loss = self._cross_entropy
-        self._l2_lambda = l2_lambda
-        self._tol = tol
-
-        self._total_samples = 1. / self._y.shape[0]
-
-    def predict(self, Z):
-        return np.argmax(self._forward(Z, False), axis=1)
-
-    def _one_hot_encode(self, y):
-        return pd.get_dummies(y).values
-
-    def _mse(self, y, Z):
-        # loss
-        loss = Z - y
-        # cost
-        cost = np.sum(loss**2) * self._total_samples
-        return loss, cost
-
-    def _cross_entropy(self, y, Z):
-        # loss
-        loss = Z - y
-        Z = np.clip(Z, 1e-12, 1 - 1e-12)
-        if self._classes == 2:
-            # cost (binary)
-            cost = -np.sum((y * np.log(Z)) + ((1 - y) * np.log(1 - Z)))
-        else:
-            # cost (multiclass)
-            cost = -np.sum(y * np.log(Z))
-        return loss, np.squeeze(cost) * self._total_samples
-
-    def _l2_regularization(self):
-        W_sum = np.sum([np.sum(np.square(layer.W)) for layer in self._layers])
-        return (self._l2_lambda / 2) * W_sum
-
-    def _forward(self, Z, train=True):
-        for i, layer in enumerate(self._layers):
-            Z = layer.forward(Z, train)
-        return Z
-
-    def _backward(self, layer_inputs, dZ):
-        for layer_index in range(self._total_layers)[::-1]:
-            layer = self._layers[layer_index]
-            dZ, dW, dB = layer.backward(layer_inputs[layer_index], dZ)
-            self._mem_weights[f'{layer}'] = (dW, dB)
-
-    def _update_weights(self):
-        m = 1. / self._batch_size
-        lr = self._lr
-        l2_reg = self._l2_lambda
-        for layer in reversed(self._layers):
-            dW, dB = self._mem_weights[f'{layer}']
-            dW += (l2_reg * layer.W)
-            layer.W -= (lr * (dW * m))
-            layer.B -= lr * (dB * m)
-
-    def _shuffle(self, X, y):
-        permutation = np.random.permutation(X.shape[0])
-        return X[permutation], y[permutation]
-
-    def train(self):
-        error_step = []
-        total_expected_error = 0
-
-        # Batch size iteration
-        mb = math.ceil(self._X.shape[0] / self._batch_size)
-
-        iter_n = 0
-        for ep, epoch in enumerate(range(self._epochs)):
-            # Shuffle dataset in each epoch
-            X, y = self._shuffle(self._X.copy(), self._y.copy())
-
-            # Mini batch
-            total_error = 0
-            k = 0
-            for _ in range(mb):
-                # Mini batch crop
-                ini, end = k * self._batch_size, (k + 1) * self._batch_size
-                batch_X, batch_y = X[ini:end, :], y[ini:end, :]
-                k += 1
-
-                # Forward
-                Z = self._forward(batch_X)
-
-                # Error
-                dZ, cost = self._loss(batch_y, Z)
-                
-                # L2 
-                cost += self._l2_regularization()
-
-                # Backward / Backprop
-                layer_inputs = [batch_X] + [layer.A for layer in self._layers]
-                self._backward(layer_inputs, dZ)
-
-                # Update weights and bias
-                self._update_weights()
-
-                # Loss
-                total_error += cost
-            
-            # Predict to check accuracy
-            y_pred = self.predict(self._X.copy())
-            acc = np.sum(y_pred == self.y) / self.y.shape[0]
-
-            print(f'Epoch {ep + 1}/{self._epochs} =======> loss: {np.round(total_error, 5)} - acc: {np.round(acc, 5)}')
-
-            if np.abs(total_expected_error-total_error) < self._tol:
-                iter_n += 1
-            # Early stop, no improvements after 10 iterations
-            if iter_n >= 10:
-                return np.array(error_step)
-            total_expected_error = total_error
-            error_step.append(total_error)
-        return np.array(error_step)
+# y_test = one_hot(y_test)
+acc = np.round(np.mean([y == p for y, p in zip(y_test, pred)]), 2) * 100
+print(f"{acc}%")
