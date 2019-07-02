@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from scipy.special import expit as sigmoid, softmax as softmax_n
-from numba import njit
 
 
 class Activation:
@@ -30,7 +29,7 @@ class Sigmoid(Activation):
 
 class Softmax(Activation):
     def forward(self, Z):
-        return softmax_n(Z.copy())
+        return softmax_n(Z.copy(), axis=1)
 
     def backward(self, Z):
         return np.ones(Z.shape)
@@ -61,15 +60,11 @@ class NeuralNetwork:
         self._B = [layer.B for layer in self._layers]
         self._AC = [layer.activation for layer in self._layers]
 
-        # Var to keep in memory values for each forward pass
-        self._ZL = []
-        self._AL = []
-
     def predict(self, X):
         A = X.copy()
         for w, b, ac in zip(self._W, self._B, self._AC):
             A = ac.forward(np.dot(A, w) + b)
-        return A
+        return np.argmax(A, axis=1)
 
     def train(self, X, y, epochs=1500):
         y = self._one_hot_encode(y)
@@ -85,18 +80,17 @@ class NeuralNetwork:
                 ini, end = r * self._batch_size, (r + 1) * self._batch_size
                 batch_X, batch_y = X[ini:end, :], y[ini:end, :]
                 r += 1
-
                 # forward
-                self._forward(batch_X)
+                ZL, AL = self._forward(batch_X)
                 # backprop
-                dB, dW = self._backpropagation(batch_y)
+                dB, dW = self._backpropagation(ZL, AL, batch_y)
                 # update weights / bias
                 self._update_weights(dB, dW)
 
             # Model avaliation
-            Z = self.predict(X)
-            loss = self._loss(Z, y.copy())
-            pred = np.argmax(Z, axis=1)
+            ZL, AL = self._forward(X)
+            loss = self._loss(AL[-1], y.copy())
+            pred = np.argmax(AL[-1], axis=1)
             acc = (
                 np.round(
                     np.mean([y == p for y, p in zip(np.argmax(y, axis=1), pred)]), 2
@@ -128,31 +122,27 @@ class NeuralNetwork:
     def _forward(self, X):
         # Start again
         A = X.copy()
-        self._ZL, self._AL = [], [A]
+        _ZL, _AL = [], [A]
         for w, b, ac in zip(self._W, self._B, self._AC):
             Z = np.dot(A, w) + b
             A = ac.forward(Z)
-            self._ZL.append(Z)
-            self._AL.append(A)
-        return self._AL[-1]
+            _ZL.append(Z)
+            _AL.append(A)
+        return _ZL, _AL
 
-    def _backpropagation(self, y):
+    def _backpropagation(self, ZL, AL, y):
         dB, dW = (
             [np.zeros(b.shape) for b in self._B],
             [np.zeros(w.shape) for w in self._W],
         )
 
-        delta = self._cross_entropy(self._AL[-1], y) * self._AC[-1].backward(
-            self._ZL[-1]
-        )
+        delta = self._cross_entropy(AL[-1], y) * self._AC[-1].backward(ZL[-1])
         dB[-1] = np.sum(delta, axis=0, keepdims=True)
-        dW[-1] = np.dot(self._AL[-2].T, delta)
+        dW[-1] = np.dot(AL[-2].T, delta)
         for k in range(2, self._total_layers + 1):
-            delta = np.dot(delta, self._W[-k + 1].T) * self._AC[-k].backward(
-                self._ZL[-k]
-            )
+            delta = np.dot(delta, self._W[-k + 1].T) * self._AC[-k].backward(ZL[-k])
             dB[-k] = np.sum(delta, axis=0, keepdims=True)
-            dW[-k] = np.dot(self._AL[-k - 1].T, delta)
+            dW[-k] = np.dot(AL[-k - 1].T, delta)
         return dB, dW
 
     def _update_weights(self, dB, dW):
@@ -201,4 +191,7 @@ if __name__ == "__main__":
     )
 
     net = NeuralNetwork(layers)
-    net.train(X_train, X_test)
+    net.train(X_train, X_test, epochs=500)
+    pred = net.predict(y_train)
+    acc = np.round(np.mean([y == p for y, p in zip(y_test, pred)]), 2) * 100
+    print(f"Accuracy: {acc}%")

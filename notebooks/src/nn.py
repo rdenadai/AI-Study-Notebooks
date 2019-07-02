@@ -192,7 +192,6 @@ for epoch in range(epochs):
         A = batch_X.copy()
         # Forward
         ZL, AL = [], [A]
-        dB, dW = ([np.zeros(b.shape) for b in B], [np.zeros(w.shape) for w in W])
         for w, b, ac in zip(W, B, AC):
             Z = np.dot(w, A) + b
             A = ac[0](Z)
@@ -200,8 +199,9 @@ for epoch in range(epochs):
             AL.append(A)
 
         # Backward
-        delta = cross_entropy(AL[-1], batch_y) * AC[-1][1](ZL[-1])
+        dB, dW = ([np.zeros(b.shape) for b in B], [np.zeros(w.shape) for w in W])
 
+        delta = cross_entropy(AL[-1], batch_y) * AC[-1][1](ZL[-1])
         dB[-1] = np.sum(delta, axis=1, keepdims=True)
         dW[-1] = np.dot(delta, AL[-2].T)
         for k in range(2, layers + 1):
