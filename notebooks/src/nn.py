@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from scipy.special import expit as sigmoid, softmax as softmax_n
+from scipy.special import expit as sigmoid, softmax
 
 
 class Activation:
@@ -29,7 +29,7 @@ class Sigmoid(Activation):
 
 class Softmax(Activation):
     def forward(self, Z):
-        return softmax_n(Z.copy(), axis=1)
+        return softmax(Z.copy(), axis=1)
 
     def backward(self, Z):
         return np.ones(Z.shape)
@@ -47,8 +47,26 @@ class Dense(Layer):
     pass
 
 
+class Dropout(Layer):
+    def __init__(self, inputs, outputs, probability=0.5):
+        super().__init__(inputs, outputs, activation=ReLU)
+        self._prob = probability
+        self._mask = None
+        self.activation = self
+        self._activation = ReLU()
+
+    def forward(self, Z, training=True):
+        if training:
+            self._mask = (np.random.rand(*Z.shape) < self._prob) / self._prob
+            return self._activation.forward(Z.copy()) * self._mask
+        return self._activation.forward(Z)
+
+    def backward(self, Z):
+        return self._activation.backward(Z.copy()) * self._mask
+
+
 class NeuralNetwork:
-    def __init__(self, layers, batch_size=32, lr=1e-1, l2=1e-1):
+    def __init__(self, layers, batch_size=32, lr=1e-0, l2=1e-3):
         self._layers = layers
         self._total_layers = len(layers)
         self._batch_size = batch_size
@@ -63,10 +81,13 @@ class NeuralNetwork:
     def predict(self, X):
         A = X.copy()
         for w, b, ac in zip(self._W, self._B, self._AC):
-            A = ac.forward(np.dot(A, w) + b)
+            if isinstance(ac, Dropout):
+                A = ac.forward(np.dot(A, w) + b, False)
+            else:
+                A = ac.forward(np.dot(A, w) + b)
         return np.argmax(A, axis=1)
 
-    def train(self, X, y, epochs=1500):
+    def train(self, X, y, epochs=1500, show_iter_err=100):
         error = []
         y = self._one_hot_encode(y)
         mb = np.ceil(X.shape[0] / self._batch_size).astype(np.int32)
@@ -90,7 +111,7 @@ class NeuralNetwork:
 
             # Model avaliation
             ZL, AL = self._forward(X)
-            loss = self._loss(AL[-1], y.copy())
+            loss = self._loss(AL[-1], y.copy()) + self._l2_reg()
             error.append(loss)
             pred = np.argmax(AL[-1], axis=1)
             acc = (
@@ -99,7 +120,7 @@ class NeuralNetwork:
                 )
                 * 100
             )
-            if (epoch + 1) % 100 == 0:
+            if (epoch + 1) % show_iter_err == 0:
                 print(
                     f"Epoch {epoch + 1}/{epochs} =======> Loss: {np.round(loss, 5)} - Acc: {np.round(acc, 1)}%"
                 )
@@ -119,7 +140,7 @@ class NeuralNetwork:
         return loss
 
     def _l2_reg(self):
-        return np.sum([self._l2 * 0.5 * np.sum(np.square(w)) for w in self._W])
+        return np.sum([self._l2 * 0.5 * np.sum(w * w) for w in self._W])
 
     def _shuffle(self, X, y):
         permutation = np.random.permutation(X.shape[0])
@@ -154,7 +175,7 @@ class NeuralNetwork:
     def _update_weights(self, dB, dW):
         k = self._total_layers - 1
         for nb, nw in zip(reversed(dB), reversed(dW)):
-            self._W[k] -= self._lr * nw
+            self._W[k] -= self._lr * (nw * self._l2)
             self._B[k] -= self._lr * nb
             k -= 1
 
@@ -172,13 +193,13 @@ if __name__ == "__main__":
 
     DETERMINISTIC = 42
     N_SAMPLES = 2000
-    N_CLASSES = 10
+    N_CLASSES = 2
 
     np.random.seed(DETERMINISTIC)
 
-    # X, y = make_moons(N_SAMPLES, noise=0.1, random_state=DETERMINISTIC)
-    dig = load_digits()
-    X, y = dig.data / 16.0, dig.target
+    X, y = make_moons(N_SAMPLES, noise=0.1, random_state=DETERMINISTIC)
+    # dig = load_digits(
+    # X, y = dig.data / 16.0, dig.target
 
     X_train, y_train, X_test, y_test = train_test_split(
         X, y, test_size=0.33, random_state=DETERMINISTIC
@@ -186,18 +207,18 @@ if __name__ == "__main__":
     N_INPUT = X_train.shape[1]
 
     layers = (
-        Dense(N_INPUT, 100),
-        Dense(100, 100),
-        Dense(100, 100),
-        Dense(100, 100),
-        Dense(100, 100),
-        Dense(100, 100),
-        Dense(100, 100, activation=Sigmoid),
-        Dense(100, N_CLASSES, activation=Softmax),
+        Dense(N_INPUT, 128),
+        # Dense(128, 128),
+        # Dense(128, 128),
+        # Dense(128, 128),
+        # Dense(128, 128),
+        Dropout(128, 128),
+        Dense(128, 128, activation=Sigmoid),
+        Dense(128, N_CLASSES, activation=Softmax),
     )
 
     net = NeuralNetwork(layers)
-    net.train(X_train, X_test, epochs=500)
+    net.train(X_train, X_test, epochs=1500, show_iter_err=5)
     pred = net.predict(y_train)
     acc = np.round(np.mean([y == p for y, p in zip(y_test, pred)]), 2) * 100
     print(f"Accuracy: {acc}%")
