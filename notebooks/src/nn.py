@@ -66,12 +66,12 @@ class Dropout(Layer):
 
 
 class NeuralNetwork:
-    def __init__(self, layers, batch_size=32, lr=1e-0, l2=1e-3):
+    def __init__(self, layers, batch_size=32, lr=1e-1, decay=1e-4):
         self._layers = layers
         self._total_layers = len(layers)
         self._batch_size = batch_size
         self._lr = lr
-        self._l2 = l2
+        self._decay = decay
 
         # Create the weights / bias / activations
         self._W = [layer.W for layer in self._layers]
@@ -88,6 +88,7 @@ class NeuralNetwork:
         return np.argmax(A, axis=1)
 
     def train(self, X, y, epochs=1500, show_iter_err=100):
+        self.m = X.shape[0]
         error = []
         y = self._one_hot_encode(y)
         mb = np.ceil(X.shape[0] / self._batch_size).astype(np.int32)
@@ -140,7 +141,9 @@ class NeuralNetwork:
         return loss
 
     def _l2_reg(self):
-        return np.sum([self._l2 * 0.5 * np.sum(w * w) for w in self._W])
+        return (self._decay / (2 * self.m)) * np.sum(
+            [np.sum(np.square(w)) for w in self._W]
+        )
 
     def _shuffle(self, X, y):
         permutation = np.random.permutation(X.shape[0])
@@ -175,7 +178,9 @@ class NeuralNetwork:
     def _update_weights(self, dB, dW):
         k = self._total_layers - 1
         for nb, nw in zip(reversed(dB), reversed(dW)):
-            self._W[k] -= self._lr * (nw * self._l2)
+            self._W[k] = (self._W[k] - (self._lr * nw)) - (
+                ((self._lr * self._decay) / self.m) * self._W[k]
+            )
             self._B[k] -= self._lr * nb
             k -= 1
 
