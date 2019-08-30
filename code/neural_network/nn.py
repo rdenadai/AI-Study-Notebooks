@@ -88,7 +88,6 @@ class NeuralNetwork:
         return np.argmax(A, axis=1)
 
     def train(self, X, y, epochs=1500, show_iter_err=100):
-        self.m = X.shape[0]
         error = []
         y = self._one_hot_encode(y)
         mb = np.ceil(X.shape[0] / self._batch_size).astype(np.int32)
@@ -141,7 +140,7 @@ class NeuralNetwork:
         return loss
 
     def _l2_reg(self):
-        return (self._decay / (2 * self.m)) * np.sum(
+        return (self._decay / (2 * self._batch_size)) * np.sum(
             [np.sum(np.square(w)) for w in self._W]
         )
 
@@ -179,7 +178,7 @@ class NeuralNetwork:
         k = self._total_layers - 1
         for nb, nw in zip(reversed(dB), reversed(dW)):
             self._W[k] = (self._W[k] - (self._lr * nw)) - (
-                ((self._lr * self._decay) / self.m) * self._W[k]
+                ((self._lr * self._decay) / self._batch_size) * self._W[k]
             )
             self._B[k] -= self._lr * nb
             k -= 1
