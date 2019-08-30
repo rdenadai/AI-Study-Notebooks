@@ -47,21 +47,21 @@ def move(x, y, size, action):
 
 def generate_world():
     F, E = FOOD, ENEMY
-    return np.array(
-        [
-            [0, 0, 0, 0, E, 0, 0, 0, 0, 0],
-            [0, E, E, 0, F, E, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, E, 0, 0],
-            [0, 0, 0, E, 0, E, 0, 0, 0, 0],
-            [0, 0, E, E, 0, 0, 0, 0, 0, 0],
-            [0, 0, F, 0, E, 0, 0, E, 0, 0],
-            [0, E, 0, 0, 0, 0, F, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, E, 0, 0],
-            [0, 0, 0, E, 0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0, 0, 0, 0, F],
-        ]
-    )
-    # return np.array([[0, F, 0, 0], [0, E, 0, E], [E, 0, F, 0], [F, 0, E, 0]])
+    # return np.array(
+    #     [
+    #         [0, 0, 0, 0, E, 0, 0, 0, 0, 0],
+    #         [0, E, E, 0, F, E, 0, 0, 0, 0],
+    #         [0, 0, 0, F, 0, 0, 0, E, 0, 0],
+    #         [0, 0, 0, E, 0, E, 0, 0, 0, 0],
+    #         [0, 0, E, E, 0, 0, 0, 0, 0, 0],
+    #         [0, 0, F, 0, E, 0, 0, E, 0, 0],
+    #         [0, E, 0, 0, 0, 0, F, 0, 0, 0],
+    #         [0, 0, 0, 0, 0, 0, 0, E, 0, 0],
+    #         [0, 0, 0, E, 0, 0, 0, 0, 0, 0],
+    #         [0, 0, 0, 0, 0, 0, 0, 0, 0, F],
+    #     ]
+    # )
+    return np.array([[0, F, 0, 0], [0, E, 0, E], [E, 0, F, 0], [F, 0, E, 0]])
 
 
 if __name__ == "__main__":
@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
                 # Collision
                 if world[y, x] == FOOD:
-                    reward = 1
+                    reward += 1
                     t_reward += 1
                     new_state = food_position[(y, x)]
                 elif world[y, x] == ENEMY:
@@ -125,10 +125,11 @@ if __name__ == "__main__":
                 world[y, x] = PLAYER
 
                 # Update Q-Table
-                target = reward + GAMMA * np.max(Q[new_state, :])
-                Q[state, action] = Q[state, action] + LEARNING_RATE * (
-                    target - Q[state, action]
-                )
+                if stop:
+                    Q[state, action] += LEARNING_RATE * (reward - Q[state, action])
+                else:
+                    target = reward + GAMMA * np.max(Q[new_state, :])
+                    Q[state, action] += LEARNING_RATE * (target - Q[state, action])
 
                 # Clear reward
                 reward = 0
