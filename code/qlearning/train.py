@@ -2,20 +2,20 @@ import os
 import time
 import pickle
 import numpy as np
-from code.lib.utils import randargmax
+from code.lib.utils import randargmax, normalize
 
 
 EPISODES = 1_500_000
-MAX_STEPS = 1500
+MAX_STEPS = 15_000
 
 N_ACTIONS = 4
-LEARNING_RATE = 0.01
-GAMMA = 0.999
+LEARNING_RATE = 0.5
+GAMMA = 0.99
 
-DECAY_RATE = 0.0001
+DECAY_RATE = 0.00001
 EPSILON = 0.99
 MAX_EPSILON = EPSILON
-MIN_EPSILON = 0.1
+MIN_EPSILON = 0.2
 
 
 PLAYER_POS = {"x": 0, "y": 0}
@@ -47,21 +47,21 @@ def move(x, y, size, action):
 
 def generate_world():
     F, E = FOOD, ENEMY
-    # return np.array(
-    #     [
-    #         [0, 0, 0, 0, E, 0, 0, 0, 0, 0],
-    #         [0, E, E, 0, F, E, 0, 0, 0, 0],
-    #         [0, 0, 0, F, 0, 0, 0, E, 0, 0],
-    #         [0, 0, 0, E, 0, E, 0, 0, 0, 0],
-    #         [0, 0, E, E, 0, 0, 0, 0, 0, 0],
-    #         [0, 0, F, 0, E, 0, 0, E, 0, 0],
-    #         [0, E, 0, 0, 0, 0, F, 0, 0, 0],
-    #         [0, 0, 0, 0, 0, 0, 0, E, 0, 0],
-    #         [0, 0, 0, E, 0, 0, 0, 0, 0, 0],
-    #         [0, 0, 0, 0, 0, 0, 0, 0, 0, F],
-    #     ]
-    # )
-    return np.array([[0, F, 0, 0], [0, E, 0, E], [E, 0, F, 0], [F, 0, E, 0]])
+    return np.array(
+        [
+            [0, 0, 0, 0, E, 0, 0, 0, 0, 0],
+            [0, E, E, 0, F, E, 0, 0, 0, 0],
+            [0, 0, 0, F, 0, 0, 0, E, 0, 0],
+            [0, E, 0, E, E, E, 0, E, 0, 0],
+            [0, E, E, E, E, 0, 0, E, 0, 0],
+            [0, 0, F, 0, E, 0, 0, E, 0, E],
+            [0, E, 0, 0, 0, 0, F, 0, 0, 0],
+            [0, E, 0, 0, 0, 0, 0, E, 0, 0],
+            [0, E, E, E, E, E, 0, E, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, F],
+        ]
+    )
+    # return np.array([[0, F, 0, 0], [0, E, 0, E], [E, 0, F, 0], [F, 0, E, 0]])
 
 
 if __name__ == "__main__":
@@ -104,7 +104,7 @@ if __name__ == "__main__":
 
                 # Collision
                 if world[y, x] == FOOD:
-                    reward += 1
+                    reward = 1
                     t_reward += 1
                     new_state = food_position[(y, x)]
                 elif world[y, x] == ENEMY:
@@ -125,9 +125,10 @@ if __name__ == "__main__":
                 world[y, x] = PLAYER
 
                 # Update Q-Table
-                if stop:
-                    Q[state, action] += LEARNING_RATE * (reward - Q[state, action])
-                else:
+                # if stop:
+                #     Q[state, action] += LEARNING_RATE * (reward - Q[state, action])
+                # else:
+                if state != new_state:
                     target = reward + GAMMA * np.max(Q[new_state, :])
                     Q[state, action] += LEARNING_RATE * (target - Q[state, action])
 
@@ -139,6 +140,7 @@ if __name__ == "__main__":
                 if stop:
                     break
 
+            # Q = normalize(Q)
             print(f"Episode: {episode}")
             print(f"Reward : {np.round(t_reward, 2)}")
             print(f"Epsilon: {EPSILON}")
