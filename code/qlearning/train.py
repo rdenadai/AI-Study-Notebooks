@@ -15,7 +15,7 @@ GAMMA = 0.3
 DECAY_RATE = 0.001
 EPSILON = 0.99
 MAX_EPSILON = EPSILON
-MIN_EPSILON = 0.1
+MIN_EPSILON = 0.2
 
 
 PLAYER_POS = {"x": 0, "y": 0}
@@ -135,6 +135,7 @@ if __name__ == "__main__":
                 if stop:
                     break
 
+            # Q = normalize(Q)
             print(f"Episode: {episode}")
             print(f"Reward : {np.round(t_reward, 2)}")
             print(f"Epsilon: {EPSILON}")
