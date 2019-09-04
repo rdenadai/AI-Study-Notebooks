@@ -82,9 +82,11 @@ if __name__ == "__main__":
                     break
             print(f"Game: {stop}")
             print("-" * 20)
-            print(f"Reward : {np.round(reward, 2)}")
             if win:
-                print(f"WIN!----")
+                print(f"**** WIN ****")
+            print(f"Reward : {np.round(reward, 2)}")
+            print("-" * 20)
+
             time.sleep(1)
             os.system("clear")
 

@@ -5,17 +5,17 @@ import numpy as np
 from code.lib.utils import randargmax, normalize
 
 
-EPISODES = 5_000
+EPISODES = 25_000
 MAX_STEPS = 99
 
 N_ACTIONS = 4
 LEARNING_RATE = 0.1
 GAMMA = 0.3
 
-DECAY_RATE = 0.001
-EPSILON = 0.99
+DECAY_RATE = 0.0001
+EPSILON = 0.8
 MAX_EPSILON = EPSILON
-MIN_EPSILON = 0.2
+MIN_EPSILON = 0.05
 
 
 PLAYER_POS = {"x": 0, "y": 0}
@@ -49,14 +49,18 @@ def generate_world():
     F, E = FOOD, ENEMY
     # return np.array(
     #     [
-    #         [0, 0, 0, 0, F],
-    #         [E, E, E, 0, 0],
-    #         [0, 0, F, 0, 0],
-    #         [E, 0, E, 0, E],
-    #         [0, F, 0, 0, 0],
+    #         [0, 0, E, 0, E, 0, E, 0],
+    #         [E, 0, E, 0, 0, F, 0, 0],
+    #         [0, 0, E, F, 0, 0, E, F],
+    #         [E, F, 0, 0, E, E, 0, 0],
+    #         [F, E, 0, E, 0, F, 0, 0],
+    #         [0, E, E, F, 0, 0, 0, E],
+    #         [0, 0, 0, 0, 0, 0, E, 0],
+    #         [0, F, 0, E, 0, E, 0, 0],
     #     ]
     # )
-    return np.array([[0, 0, E], [E, 0, F], [F, 0, 0]])
+    return np.array([[0, 0, 0, F], [E, 0, E, 0], [0, 0, F, 0], [E, F, E, 0]])
+    # return np.array([[0, 0, E], [E, 0, F], [F, 0, 0]])
 
 
 if __name__ == "__main__":
@@ -70,8 +74,9 @@ if __name__ == "__main__":
         except Exception as e:
             extra_state = len(zero_world[zero_world == FOOD])
             Q = np.zeros((size ** 2 + extra_state, N_ACTIONS))
-            # Q = -np.ones((size ** 2 + extra_state, N_ACTIONS))
+            # Q = np.random.uniform(size=(size ** 2 + extra_state, N_ACTIONS))
 
+        solved = []
         for episode in range(EPISODES):
             PLAYER_POS = {"x": 0, "y": 0}
             state, action, t_reward, reward = 0, 0, 0, 0
@@ -91,7 +96,7 @@ if __name__ == "__main__":
 
                 # Action
                 action = generate_random_action(x, y, size)
-                if np.random.uniform(0, 1) > EPSILON:
+                if np.random.uniform(0, 1) > EPSILON or k % 10:
                     action = randargmax(Q[state, :])
                 x, y = move(x, y, size, action)
 
@@ -115,6 +120,7 @@ if __name__ == "__main__":
                 if not np.any(world == FOOD):
                     stop = True
                     win = True
+                    solved.append(win)
 
                 # Update player position
                 world[PLAYER_POS.get("y", 0), PLAYER_POS.get("x", 0)] = 0
@@ -124,10 +130,7 @@ if __name__ == "__main__":
 
                 # Update Q-Table
                 target = LEARNING_RATE * (reward + GAMMA * np.max(Q[new_state, :]))
-                if win:
-                    Q[state, action] += target
-                else:
-                    Q[state, action] = (1 - LEARNING_RATE) * Q[state, action] + target
+                Q[state, action] = (1 - LEARNING_RATE) * Q[state, action] + target
 
                 # Pass new state
                 state = new_state
@@ -135,13 +138,15 @@ if __name__ == "__main__":
                 if stop:
                     break
 
-            # Q = normalize(Q)
             print(f"Episode: {episode}")
             print(f"Reward : {np.round(t_reward, 2)}")
             print(f"Epsilon: {EPSILON}")
             print("-" * 20)
             time.sleep(0.01)
             os.system("clear")
+
+            if len(solved) >= int(world.shape[0] ** 5):
+                break
 
             EPSILON = MIN_EPSILON + (MAX_EPSILON - MIN_EPSILON) * np.exp(
                 -DECAY_RATE * episode
