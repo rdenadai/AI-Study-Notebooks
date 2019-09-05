@@ -1,6 +1,6 @@
 # Q-Learning
 
-![](https://github.com/rdenadai/AI-Study-Notebooks/tree/master/images/simple_RL_schema.png?raw=true)
+![](https://raw.githubusercontent.com/rdenadai/AI-Study-Notebooks/master/images/simple_RL_schema.png)
 
 Q-Learning equation:
 
@@ -19,7 +19,7 @@ $> python -m code.qlearning.play
 
 ## Running agent
 
-![](https://github.com/rdenadai/AI-Study-Notebooks/tree/master/images/qlearning_01.gif?raw=true)
+![](https://raw.githubusercontent.com/rdenadai/AI-Study-Notebooks/master/images/qlearning_01.gif)
 
 
 ## References
