@@ -19,7 +19,7 @@ $> python -m code.qlearning.play
 
 ## Running agent
 
-
+![Q-Learning 01](https://github.com/rdenadai/AI-Study-Notebooks/tree/master/images/qlearning_01.gif)
 
 
 ## References

@@ -15,6 +15,8 @@ PLAYER = 1
 FOOD = 2
 ENEMY = 3
 
+WIN_SIZE = (100, 100)
+
 
 def move(x, y, size, action):
     if action == 0:
@@ -32,6 +34,16 @@ def move(x, y, size, action):
     return x, y
 
 
+def get_pygame_surface(world):
+    world[world == PLAYER] = 255
+    world[world == FOOD] = 160
+    world[world == ENEMY] = 50
+    world = np.dstack([world for _ in range(3)]).astype(np.uint8)
+    image = Image.fromarray(world, "RGB")
+    image = image.resize(WIN_SIZE)
+    return pygame.image.fromstring(image.tobytes(), image.size, image.mode)
+
+
 if __name__ == "__main__":
     try:
         with open("code/qlearning/files/world.pkl", "rb") as f:
@@ -43,7 +55,7 @@ if __name__ == "__main__":
 
         pygame.init()
         clock = pygame.time.Clock()
-        display = pygame.display.set_mode((80, 80), pygame.DOUBLEBUF)
+        display = pygame.display.set_mode(WIN_SIZE, pygame.DOUBLEBUF)
         pygame.display.set_caption("Q-Learning")
 
         state = 0
@@ -57,21 +69,8 @@ if __name__ == "__main__":
                     pygame.quit()
                     sys.exit()
 
-            nworld = np.copy(world)
-            nworld = nworld.astype(np.uint8)
-            nworld[nworld == PLAYER] = 255
-            nworld[nworld == FOOD] = 160
-            nworld[nworld == ENEMY] = 80
-            image = Image.fromarray(np.dstack((nworld, nworld, nworld)), "RGB").resize(
-                (80, 80)
-            )
-
-            mode = image.mode
-            isize = image.size
-            data = image.tobytes()
-            surf = pygame.image.fromstring(data, isize, mode)
             display.fill((0, 0, 0))
-            display.blit(surf, (0, 0))
+            display.blit(get_pygame_surface(np.copy(world)), (0, 0))
             pygame.display.update()
             clock.tick(10)
 

@@ -47,8 +47,6 @@ def move(x, y, size, action):
 
 def generate_world():
     F, E = FOOD, ENEMY
-    # Solved
-    # -----------------------
     return np.array(
         [
             [0, 0, E, 0, E, E, E, E, E],
@@ -62,6 +60,21 @@ def generate_world():
             [E, E, 0, 0, 0, E, 0, 0, 0],
         ]
     )
+    # Solved
+    # -----------------------
+    # return np.array(
+    #     [
+    #         [0, 0, E, 0, E, E, E, E, E],
+    #         [0, 0, E, 0, 0, 0, 0, 0, E],
+    #         [E, 0, 0, F, 0, E, 0, 0, E],
+    #         [E, 0, 0, 0, E, E, 0, F, 0],
+    #         [F, E, E, E, E, 0, 0, 0, 0],
+    #         [0, 0, E, E, 0, 0, 0, E, 0],
+    #         [E, 0, 0, E, 0, F, E, 0, 0],
+    #         [E, 0, F, 0, 0, E, 0, 0, 0],
+    #         [E, E, 0, 0, 0, E, 0, 0, 0],
+    #     ]
+    # )
     # Solved
     # -----------------------
     # return np.array(
