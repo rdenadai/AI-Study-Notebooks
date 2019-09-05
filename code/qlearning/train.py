@@ -5,12 +5,12 @@ import numpy as np
 from code.lib.utils import randargmax, normalize
 
 
-EPISODES = 20_000
+EPISODES = 50_000
 MAX_STEPS = 99
 
 N_ACTIONS = 4
 LEARNING_RATE = 0.01
-GAMMA = 0.995
+GAMMA = 0.95
 
 DECAY_RATE = 0.0005
 EPSILON = 0.99
@@ -49,15 +49,23 @@ def generate_world():
     F, E = FOOD, ENEMY
     return np.array(
         [
-            [0, 0, E, 0, E, E, E, E, E],
-            [0, 0, E, 0, 0, 0, 0, 0, E],
-            [E, 0, 0, F, 0, E, 0, 0, E],
-            [E, 0, 0, 0, E, E, 0, F, 0],
-            [F, E, E, E, E, 0, 0, 0, 0],
-            [0, 0, E, E, 0, 0, 0, E, 0],
-            [E, 0, 0, E, 0, F, E, 0, 0],
-            [E, 0, F, 0, 0, E, 0, 0, 0],
-            [E, E, 0, 0, 0, E, 0, 0, 0],
+            [0, 0, 0, E, E, E, E, E, E, E, E, 0, 0, E, E, E, E],
+            [E, 0, E, 0, 0, E, 0, E, E, 0, E, 0, 0, E, 0, E, E],
+            [E, 0, 0, F, 0, 0, 0, 0, E, 0, 0, 0, E, 0, 0, E, E],
+            [E, 0, 0, 0, E, E, 0, F, E, 0, 0, E, E, 0, 0, 0, E],
+            [E, E, E, E, E, 0, 0, 0, E, 0, 0, E, E, 0, E, E, E],
+            [E, E, E, E, 0, 0, 0, E, E, 0, 0, 0, 0, 0, 0, 0, 0],
+            [E, E, 0, E, 0, 0, E, E, 0, 0, F, 0, 0, 0, F, 0, E],
+            [E, 0, 0, 0, 0, E, E, E, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [E, 0, F, 0, 0, E, E, E, 0, 0, 0, 0, 0, E, 0, 0, 0],
+            [E, 0, 0, 0, E, E, 0, 0, 0, 0, E, E, 0, E, 0, F, E],
+            [E, 0, 0, E, 0, E, 0, 0, F, 0, E, 0, 0, E, 0, 0, 0],
+            [E, 0, E, E, F, 0, 0, 0, 0, 0, 0, E, 0, E, E, 0, 0],
+            [E, 0, 0, E, 0, 0, 0, 0, 0, 0, E, E, E, E, E, E, 0],
+            [E, 0, 0, E, 0, E, 0, E, E, 0, E, E, 0, 0, E, 0, 0],
+            [E, 0, F, 0, 0, E, 0, 0, E, 0, 0, E, 0, 0, E, 0, 0],
+            [E, 0, 0, 0, 0, E, 0, 0, E, 0, 0, 0, E, F, 0, 0, F],
+            [E, 0, 0, 0, 0, E, 0, 0, E, 0, 0, 0, E, 0, 0, 0, E],
         ]
     )
     # Solved
