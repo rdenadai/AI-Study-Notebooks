@@ -1,26 +1,10 @@
-<style TYPE="text/css">
-code.has-jax {font: inherit; font-size: 100%; background: inherit; border: inherit;}
-</style>
-<script type="text/x-mathjax-config">
-MathJax.Hub.Config({
-    tex2jax: {
-        inlineMath: [['$','$'], ['\\(','\\)']],
-        skipTags: ['script', 'noscript', 'style', 'textarea', 'pre'] // removed 'code' entry
-    }
-});
-MathJax.Hub.Queue(function() {
-    var all = MathJax.Hub.getAllJax(), i;
-    for(i = 0; i < all.length; i += 1) {
-        all[i].SourceElement().parentNode.className += ' has-jax';
-    }
-});
-</script>
-<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.6/MathJax.js?config=TeX-AMS_HTML-full"></script>
-
 # Q-Learning
 
 ![RL Schema : Sutton & Barto](https://github.com/rdenadai/AI-Study-Notebooks/tree/master/images/simple_RL_schema.png)
 
+Q-Learning equation:
+
+<img src="https://latex.codecogs.com/svg.latex?Q(s_t,&space;a_t)&space;\leftarrow&space;((1&space;-&space;\alpha)&space;\cdot&space;Q(s_t,&space;a_t))&space;&plus;&space;(\alpha&space;\cdot&space;(r_t&space;&plus;&space;\gamma&space;\cdot&space;max(Q(S_{t&plus;1},&space;a))))" title="Q(s_t, a_t) \leftarrow ((1 - \alpha) \cdot Q(s_t, a_t)) + (\alpha \cdot (r_t + \gamma \cdot max(Q(S_{t+1}, a))))" />
 
 
 ## Running
@@ -33,9 +17,16 @@ $> python -m code.qlearning.train
 $> python -m code.qlearning.play
 ```
 
+## Running agent
+
+
+
+
 ## References
 
  - [Reinforcement Learning (Sutton & Barto)](http://incompleteideas.net/book/RLbook2018.pdf)
+
+ - [A Beginner's Guide to Deep Reinforcement Learning](https://skymind.ai/wiki/deep-reinforcement-learning)
 
  - [Deep Reinforcement Learning Course](https://simoninithomas.github.io/Deep_reinforcement_learning_Course/)
 
