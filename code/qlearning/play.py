@@ -15,7 +15,7 @@ PLAYER = 1
 FOOD = 2
 ENEMY = 3
 
-WIN_SIZE = (100, 100)
+WIN_SIZE = (150, 150)
 
 
 def move(x, y, size, action):

@@ -5,17 +5,19 @@ import numpy as np
 from code.lib.utils import randargmax, normalize
 
 
-EPISODES = 50_000
+EPISODES = 5_000
 MAX_STEPS = 99
+MIN_SOLVED = EPISODES if EPISODES < 5000 else 5000
+
 
 N_ACTIONS = 4
-LEARNING_RATE = 0.01
+LEARNING_RATE = 0.1
 GAMMA = 0.95
 
 DECAY_RATE = 0.0005
-EPSILON = 0.99
+EPSILON = 0.79
 MAX_EPSILON = EPSILON
-MIN_EPSILON = 0.25
+MIN_EPSILON = 0.15
 
 
 PLAYER_POS = {"x": 0, "y": 0}
@@ -49,27 +51,41 @@ def generate_world():
     F, E = FOOD, ENEMY
     return np.array(
         [
-            [0, 0, 0, E, E, E, E, E, E, E, E, 0, 0, E, E, E, E],
-            [E, 0, E, 0, 0, E, 0, E, E, 0, E, 0, 0, E, 0, E, E],
+            [0, 0, E, E, E, E, E, E, E, E, E, 0, 0, E, E, E, E],
+            [0, 0, 0, E, E, 0, E, E, E, 0, E, 0, 0, E, 0, E, E],
             [E, 0, 0, F, 0, 0, 0, 0, E, 0, 0, 0, E, 0, 0, E, E],
-            [E, 0, 0, 0, E, E, 0, F, E, 0, 0, E, E, 0, 0, 0, E],
-            [E, E, E, E, E, 0, 0, 0, E, 0, 0, E, E, 0, E, E, E],
-            [E, E, E, E, 0, 0, 0, E, E, 0, 0, 0, 0, 0, 0, 0, 0],
-            [E, E, 0, E, 0, 0, E, E, 0, 0, F, 0, 0, 0, F, 0, E],
-            [E, 0, 0, 0, 0, E, E, E, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [E, 0, 0, 0, 0, 0, 0, 0, E, 0, 0, E, E, 0, 0, 0, E],
+            [E, E, E, E, E, E, F, 0, E, 0, 0, E, E, 0, 0, E, E],
+            [E, E, E, E, E, 0, 0, 0, E, 0, 0, 0, 0, 0, 0, E, 0],
+            [E, E, E, E, 0, 0, 0, E, E, 0, F, 0, 0, 0, F, 0, E],
+            [E, 0, 0, 0, 0, 0, E, E, E, 0, 0, 0, 0, 0, 0, 0, 0],
             [E, 0, F, 0, 0, E, E, E, 0, 0, 0, 0, 0, E, 0, 0, 0],
-            [E, 0, 0, 0, E, E, 0, 0, 0, 0, E, E, 0, E, 0, F, E],
-            [E, 0, 0, E, 0, E, 0, 0, F, 0, E, 0, 0, E, 0, 0, 0],
-            [E, 0, E, E, F, 0, 0, 0, 0, 0, 0, E, 0, E, E, 0, 0],
-            [E, 0, 0, E, 0, 0, 0, 0, 0, 0, E, E, E, E, E, E, 0],
-            [E, 0, 0, E, 0, E, 0, E, E, 0, E, E, 0, 0, E, 0, 0],
-            [E, 0, F, 0, 0, E, 0, 0, E, 0, 0, E, 0, 0, E, 0, 0],
-            [E, 0, 0, 0, 0, E, 0, 0, E, 0, 0, 0, E, F, 0, 0, F],
-            [E, 0, 0, 0, 0, E, 0, 0, E, 0, 0, 0, E, 0, 0, 0, E],
+            [E, 0, 0, 0, E, E, 0, 0, 0, 0, 0, E, 0, E, 0, F, E],
+            [E, 0, 0, E, E, E, 0, F, 0, 0, E, E, 0, E, 0, 0, 0],
+            [E, 0, 0, E, 0, 0, 0, 0, 0, 0, E, E, E, E, E, 0, 0],
+            [E, 0, 0, E, 0, 0, 0, 0, 0, 0, E, E, E, E, E, 0, 0],
+            [E, 0, 0, 0, 0, 0, 0, E, E, 0, E, E, F, 0, E, 0, 0],
+            [E, 0, 0, F, 0, E, 0, 0, E, 0, 0, E, 0, 0, E, 0, 0],
+            [E, 0, 0, 0, 0, E, 0, 0, E, 0, 0, E, 0, 0, 0, F, 0],
+            [E, 0, E, E, 0, E, 0, 0, E, 0, 0, E, E, 0, 0, 0, E],
         ]
     )
     # Solved
     # -----------------------
+    # return np.array(
+    #     [
+    #         [0, 0, E, 0, E, E, E, E, E, E],
+    #         [0, 0, E, 0, 0, 0, 0, 0, 0, E],
+    #         [E, 0, 0, F, 0, E, 0, 0, 0, E],
+    #         [E, 0, 0, 0, E, E, 0, F, 0, E],
+    #         [F, E, E, E, E, 0, 0, 0, 0, 0],
+    #         [0, 0, E, E, 0, 0, 0, 0, E, 0],
+    #         [E, 0, 0, E, 0, F, E, 0, 0, 0],
+    #         [E, 0, 0, 0, 0, 0, E, 0, E, E],
+    #         [E, E, 0, F, 0, E, 0, 0, E, E],
+    #         [E, E, 0, 0, 0, E, 0, E, E, E],
+    #     ]
+    # )
     # return np.array(
     #     [
     #         [0, 0, E, 0, E, E, E, E, E],
@@ -163,7 +179,9 @@ if __name__ == "__main__":
         except Exception as e:
             extra_state = len(zero_world[zero_world == FOOD])
             # Q = np.zeros((size ** 2 + extra_state, N_ACTIONS))
-            Q = np.random.uniform(size=(size ** 2 + extra_state, N_ACTIONS))
+            Q = np.random.uniform(
+                low=-1, high=1, size=(size ** 2 + extra_state, N_ACTIONS)
+            )
 
         solved = 0
 
@@ -190,7 +208,7 @@ if __name__ == "__main__":
                     action = randargmax(Q[state, :])
                 else:
                     action = generate_random_action(x, y, size)
-                    if np.random.uniform(0, 1) > EPSILON or k % 10:
+                    if np.random.uniform(0, 1) > EPSILON:
                         action = randargmax(Q[state, :])
                 x, y = move(x, y, size, action)
 
@@ -201,7 +219,7 @@ if __name__ == "__main__":
                 reward = 0
                 # Collision
                 if world[y, x] == FOOD:
-                    reward = 25
+                    reward = 1
                     t_reward += 1
                     new_state = food_position[(y, x)]
                 elif world[y, x] == ENEMY:
@@ -232,8 +250,10 @@ if __name__ == "__main__":
                 if stop:
                     break
 
-            solved_at_least = int(solved / EPISODES * 100)
+            # Q = np.clip(-100, 100, Q)
+            solved_at_least = np.round(solved / MIN_SOLVED * 100, 2)
             print(f"Episode: {episode}")
+            print(f"Exploiting: {exploit}")
             print(f"Reward : {np.round(t_reward, 2)}")
             print(f"Epsilon: {EPSILON}")
             print(f"Solved %: {solved_at_least}")
@@ -242,7 +262,9 @@ if __name__ == "__main__":
             os.system("clear")
 
             # If we solve at least 25% of times
-            if 25 <= solved_at_least < 35:
+            if 0.5 <= solved_at_least < 15:
+                exploit = True
+            elif 20 <= solved_at_least < 35:
                 exploit = True
             elif solved_at_least >= 35:
                 break

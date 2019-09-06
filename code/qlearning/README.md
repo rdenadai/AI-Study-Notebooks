@@ -9,17 +9,20 @@ Q-Learning equation:
 
 ## Running
 
+Train the agent:
 ```bash
 $> python -m code.qlearning.train
 ```
 
+See it in action:
 ```bash
 $> python -m code.qlearning.play
 ```
 
-## Running agent
+## Example of playing
 
-![](https://raw.githubusercontent.com/rdenadai/AI-Study-Notebooks/master/images/qlearning_01.gif)
+| ![Agent 1](https://raw.githubusercontent.com/rdenadai/AI-Study-Notebooks/master/images/qlearning_01.gif) | ![Agent 2](https://raw.githubusercontent.com/rdenadai/AI-Study-Notebooks/master/images/qlearning_02.gif) |
+
 
 
 ## References
