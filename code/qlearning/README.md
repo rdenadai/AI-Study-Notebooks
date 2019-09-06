@@ -1,6 +1,6 @@
 # Q-Learning
 
-![](https://raw.githubusercontent.com/rdenadai/AI-Study-Notebooks/master/images/simple_RL_schema.png)
+<img src="https://raw.githubusercontent.com/rdenadai/AI-Study-Notebooks/master/images/simple_RL_schema.png" width="500px"/>
 
 Q-Learning equation:
 

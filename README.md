@@ -2,6 +2,12 @@
 
 Notebooks about Artificial Intelligence. Study cases and other playeable code justo to explore some interesting facts.
 
+## Implementation details in this repo
+
+[Neural Network](https://github.com/rdenadai/AI-Study-Notebooks/tree/master/code/neural_network)
+[Q-Learning](https://github.com/rdenadai/AI-Study-Notebooks/tree/master/code/qlearning)
+
+
 ## Resources:
 
  - [Neural Networks and Deep Learning](http://neuralnetworksanddeeplearning.com/)
