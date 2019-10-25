@@ -111,7 +111,7 @@ class NeuralNetwork:
 
             # Model avaliation
             ZL, AL = self._forward(X)
-            loss = self._loss(AL[-1], y.copy()) + self._l2_reg()
+            loss = self._cross_entropy(AL[-1], y.copy()) + self._l2_reg()
             error.append(loss)
             pred = np.argmax(AL[-1], axis=1)
             acc = (
@@ -129,11 +129,11 @@ class NeuralNetwork:
     def _one_hot_encode(self, Y):
         return pd.get_dummies(Y).values
 
-    def _cross_entropy(self, Yh, y):
+    def _gradient(self, Yh, y):
         n_samples = y.shape[0]
-        return (Yh - y) / n_samples
+        return (1 / n_samples) * (Yh - y)
 
-    def _loss(self, Yh, y):
+    def _cross_entropy(self, Yh, y):
         n_samples = y.shape[0]
         logp = -np.log(Yh[np.arange(n_samples), y.argmax(axis=1)])
         loss = np.sum(logp) / n_samples
@@ -165,7 +165,7 @@ class NeuralNetwork:
             [np.zeros(w.shape) for w in self._W],
         )
 
-        delta = self._cross_entropy(AL[-1], y) * self._AC[-1].backward(ZL[-1])
+        delta = self._gradient(AL[-1], y) * self._AC[-1].backward(ZL[-1])
         dB[-1] = np.sum(delta, axis=0, keepdims=True)
         dW[-1] = np.dot(AL[-2].T, delta)
         for k in range(2, self._total_layers + 1):
