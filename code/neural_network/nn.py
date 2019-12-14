@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from scipy.special import expit as sigmoid, softmax
+from sklearn.metrics import mean_squared_log_error
 
 
 class Activation:
@@ -66,12 +67,15 @@ class Dropout(Layer):
 
 
 class NeuralNetwork:
-    def __init__(self, layers, batch_size=32, lr=1e-1, decay=1e-4):
+    def __init__(
+        self, layers, batch_size=32, lr=1e-1, decay=1e-4, ntype="classification"
+    ):
         self._layers = layers
         self._total_layers = len(layers)
         self._batch_size = batch_size
         self._lr = lr
         self._decay = decay
+        self._ntype = ntype
 
         # Create the weights / bias / activations
         self._W = [layer.W for layer in self._layers]
@@ -85,11 +89,14 @@ class NeuralNetwork:
                 A = ac.forward(np.dot(A, w) + b, False)
             else:
                 A = ac.forward(np.dot(A, w) + b)
-        return np.argmax(A, axis=1)
+        if self._ntype == "classification":
+            return np.argmax(A, axis=1)
+        return A.ravel()
 
     def train(self, X, y, epochs=1500, show_iter_err=100):
         error = []
-        y = self._one_hot_encode(y)
+        if self._ntype == "classification":
+            y = self._one_hot_encode(y)
         mb = np.ceil(X.shape[0] / self._batch_size).astype(np.int32)
         # Running epochs
         for epoch in range(epochs):
@@ -100,7 +107,10 @@ class NeuralNetwork:
             for _ in range(mb):
                 # Mini batch crop
                 ini, end = r * self._batch_size, (r + 1) * self._batch_size
-                batch_X, batch_y = X[ini:end, :], y[ini:end, :]
+                if self._ntype == "classification":
+                    batch_X, batch_y = X[ini:end, :], y[ini:end, :]
+                else:
+                    batch_X, batch_y = X[ini:end, :], y[ini:end]
                 r += 1
                 # forward
                 ZL, AL = self._forward(batch_X)
@@ -111,19 +121,29 @@ class NeuralNetwork:
 
             # Model avaliation
             ZL, AL = self._forward(X)
-            loss = self._cross_entropy(AL[-1], y.copy()) + self._l2_reg()
-            error.append(loss)
-            pred = np.argmax(AL[-1], axis=1)
-            acc = (
-                np.round(
-                    np.mean([y == p for y, p in zip(np.argmax(y, axis=1), pred)]), 2
+            if self._ntype == "classification":
+                loss = self._cross_entropy(AL[-1], y.copy()) + self._l2_reg()
+                error.append(loss)
+                pred = np.argmax(AL[-1], axis=1)
+                acc = (
+                    np.round(
+                        np.mean([y == p for y, p in zip(np.argmax(y, axis=1), pred)]), 2
+                    )
+                    * 100
                 )
-                * 100
-            )
-            if (epoch + 1) % show_iter_err == 0:
-                print(
-                    f"Epoch {epoch + 1}/{epochs} =======> Loss: {np.round(loss, 5)} - Acc: {np.round(acc, 1)}%"
-                )
+                if (epoch + 1) % show_iter_err == 0:
+                    print(
+                        f"Epoch {epoch + 1}/{epochs} =======> Loss: {np.round(loss, 5)} - Acc: {np.round(acc, 1)}%"
+                    )
+            else:
+                Yh = AL[-1].ravel()
+                loss = self._mse(Yh, y.copy()) + self._l2_reg()
+                error.append(loss)
+                acc = np.sqrt(mean_squared_log_error(y, Yh))
+                if (epoch + 1) % show_iter_err == 0:
+                    print(
+                        f"Epoch {epoch + 1}/{epochs} =======> Loss: {np.round(loss, 5)} - MSLE: {np.round(acc, 5)}"
+                    )
         return error
 
     def _one_hot_encode(self, Y):
@@ -139,6 +159,11 @@ class NeuralNetwork:
         loss = np.sum(logp) / n_samples
         return loss
 
+    def _mse(self, Yh, y):
+        n_samples = y.shape[0]
+        loss = np.sum(np.square(Yh - y)) / (2 * n_samples)
+        return loss
+
     def _l2_reg(self):
         return (self._decay / (2 * self._batch_size)) * np.sum(
             [np.sum(np.square(w)) for w in self._W]
@@ -146,7 +171,9 @@ class NeuralNetwork:
 
     def _shuffle(self, X, y):
         permutation = np.random.permutation(X.shape[0])
-        return X[permutation, :], y[permutation, :]
+        if self._ntype == "classification":
+            return X[permutation, :], y[permutation, :]
+        return X[permutation, :], y[permutation]
 
     def _forward(self, X):
         # Start again
@@ -165,7 +192,15 @@ class NeuralNetwork:
             [np.zeros(w.shape) for w in self._W],
         )
 
-        delta = self._gradient(AL[-1], y) * self._AC[-1].backward(ZL[-1])
+        if self._ntype == "classification":
+            Yh = AL[-1]
+            org_delta = self._AC[-1].backward(ZL[-1])
+            delta = self._gradient(Yh, y) * org_delta
+        else:
+            Yh = AL[-1].ravel()
+            org_delta = self._AC[-1].backward(ZL[-1]).ravel()
+            delta = (self._gradient(Yh, y) * org_delta).reshape(-1, 1)
+
         dB[-1] = np.sum(delta, axis=0, keepdims=True)
         dW[-1] = np.dot(AL[-2].T, delta)
         for k in range(2, self._total_layers + 1):
@@ -212,17 +247,14 @@ if __name__ == "__main__":
 
     layers = (
         Dense(N_INPUT, 128),
-        # Dense(128, 128),
-        # Dense(128, 128),
-        # Dense(128, 128),
-        # Dense(128, 128),
+        Dense(128, 128),
+        Dense(128, 128),
         Dropout(128, 128),
-        Dense(128, 128, activation=Sigmoid),
         Dense(128, N_CLASSES, activation=Softmax),
     )
 
     net = NeuralNetwork(layers)
-    net.train(X_train, X_test, epochs=1500, show_iter_err=5)
+    net.train(X_train, X_test, epochs=100, show_iter_err=20)
     pred = net.predict(y_train)
     acc = np.round(np.mean([y == p for y, p in zip(y_test, pred)]), 2) * 100
     print(f"Accuracy: {acc}%")
