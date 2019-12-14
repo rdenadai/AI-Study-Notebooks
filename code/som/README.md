@@ -4,7 +4,7 @@ Self-Organizing Map (SOM) is a unsupervised algorithm which maps a lower dimensi
 
 One propurse could be clustering or even dimensionality reduction.
 
-![SOM](https://github.com/rdenadai/AI-Study-Notebooks/tree/master/images/som.gif)
+![SOM](https://github.com/rdenadai/AI-Study-Notebooks/blob/master/images/som.gif?raw=true)
 
 The map is build using a grid with nxn dimensions and each unit (neuron) of the map contains a value(s) with the dimension of the data. This way we are able to map a high dimension to a lower nxn dimension.
 
@@ -16,7 +16,7 @@ At the end, one should see the data topology using a U-Matrix.
 
 All of these are implemented in this notebook.
 
-    Using cpu...
+    cuda:0
 
 
 ### Implementation
@@ -37,14 +37,14 @@ Later on this notebook is explored a way to create a latent space of the MNIST d
 
 #### 3D Blobs
 
-    epoch [25/200] <=> Running time: 10.0800302028656
-    epoch [50/200] <=> Running time: 19.663402795791626
-    epoch [75/200] <=> Running time: 27.182862281799316
-    epoch [100/200] <=> Running time: 33.35936117172241
-    epoch [125/200] <=> Running time: 37.36079931259155
-    epoch [150/200] <=> Running time: 41.348073959350586
-    epoch [175/200] <=> Running time: 43.851285219192505
-    epoch [199/200] <=> Running time: 46.130627155303955
+    epoch [25/200] <=> Running time: 7.066114664077759
+    epoch [50/200] <=> Running time: 13.8524649143219
+    epoch [75/200] <=> Running time: 18.966942071914673
+    epoch [100/200] <=> Running time: 23.207172393798828
+    epoch [125/200] <=> Running time: 26.59671688079834
+    epoch [150/200] <=> Running time: 29.89101791381836
+    epoch [175/200] <=> Running time: 32.80154633522034
+    epoch [199/200] <=> Running time: 36.626179218292236
 
 
 
@@ -61,14 +61,14 @@ Later on this notebook is explored a way to create a latent space of the MNIST d
 
 #### 2D Blobs
 
-    epoch [25/200] <=> Running time: 6.300544500350952
-    epoch [50/200] <=> Running time: 11.740918159484863
-    epoch [75/200] <=> Running time: 15.853654384613037
-    epoch [100/200] <=> Running time: 18.906008005142212
-    epoch [125/200] <=> Running time: 20.929914236068726
-    epoch [150/200] <=> Running time: 23.021363973617554
-    epoch [175/200] <=> Running time: 24.241161108016968
-    epoch [199/200] <=> Running time: 25.426844835281372
+    epoch [25/200] <=> Running time: 4.368779182434082
+    epoch [50/200] <=> Running time: 8.014280319213867
+    epoch [75/200] <=> Running time: 10.712982892990112
+    epoch [100/200] <=> Running time: 12.925299882888794
+    epoch [125/200] <=> Running time: 14.592494010925293
+    epoch [150/200] <=> Running time: 16.27384376525879
+    epoch [175/200] <=> Running time: 17.880710124969482
+    epoch [199/200] <=> Running time: 19.7550106048584
 
 
 
@@ -170,57 +170,6 @@ The problem with the above techniques is that it works fine with a low dimension
 
 If one try with the MNIST dataset provided by pytorch, well... its a little differente history.
 
-    0it [00:00, ?it/s]
-
-    Downloading http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz to ./data/MNIST/raw/train-images-idx3-ubyte.gz
-
-
-    9920512it [00:06, 1588962.93it/s]                            
-
-
-    Extracting ./data/MNIST/raw/train-images-idx3-ubyte.gz to ./data/MNIST/raw
-
-
-      0%|          | 0/28881 [00:00<?, ?it/s]
-
-    Downloading http://yann.lecun.com/exdb/mnist/train-labels-idx1-ubyte.gz to ./data/MNIST/raw/train-labels-idx1-ubyte.gz
-
-
-    32768it [00:00, 137448.71it/s]           
-      0%|          | 0/1648877 [00:00<?, ?it/s]
-
-    Extracting ./data/MNIST/raw/train-labels-idx1-ubyte.gz to ./data/MNIST/raw
-    Downloading http://yann.lecun.com/exdb/mnist/t10k-images-idx3-ubyte.gz to ./data/MNIST/raw/t10k-images-idx3-ubyte.gz
-
-
-    1654784it [00:00, 2260738.83it/s]                            
-      0%|          | 0/4542 [00:00<?, ?it/s]
-
-    Extracting ./data/MNIST/raw/t10k-images-idx3-ubyte.gz to ./data/MNIST/raw
-    Downloading http://yann.lecun.com/exdb/mnist/t10k-labels-idx1-ubyte.gz to ./data/MNIST/raw/t10k-labels-idx1-ubyte.gz
-
-
-    8192it [00:00, 54156.22it/s]            
-    0it [00:00, ?it/s]
-
-    Extracting ./data/MNIST/raw/t10k-labels-idx1-ubyte.gz to ./data/MNIST/raw
-    Processing...
-    Done!
-    Downloading https://raw.githubusercontent.com/facebookresearch/qmnist/master/qmnist-test-images-idx3-ubyte.gz to ./data/QMNIST/raw/qmnist-test-images-idx3-ubyte.gz
-
-
-    9748480it [00:00, 25438372.78it/s]         
-    0it [00:00, ?it/s]
-
-    Downloading https://raw.githubusercontent.com/facebookresearch/qmnist/master/qmnist-test-labels-idx2-int.gz to ./data/QMNIST/raw/qmnist-test-labels-idx2-int.gz
-
-
-    532480it [00:00, 2204021.03it/s]          
-
-
-    Processing...
-
-
 
 ![png](7.%20SOM%20%28Kohonen%20MAP%29_files/7.%20SOM%20%28Kohonen%20MAP%29_54_0.png)
 
@@ -229,27 +178,57 @@ If one try with the MNIST dataset provided by pytorch, well... its a little diff
 
 #### Training step
 
-    [1/21] loss: 0.1966524720, time: 23.61
-    [2/21] loss: 0.1576950103, time: 22.83
-    [3/21] loss: 0.1423753500, time: 23.08
-    [4/21] loss: 0.1070745364, time: 23.18
-    [5/21] loss: 0.1161808446, time: 22.94
-    [6/21] loss: 0.1033642441, time: 22.16
-    [7/21] loss: 0.1068933606, time: 22.94
-    [8/21] loss: 0.1079141647, time: 22.54
-    [9/21] loss: 0.0915218294, time: 23.32
-    [10/21] loss: 0.0962715074, time: 22.60
-    [11/21] loss: 0.0920675248, time: 22.45
-    [12/21] loss: 0.0759960860, time: 23.04
-    [13/21] loss: 0.1056505293, time: 24.24
-    [14/21] loss: 0.0813286826, time: 22.70
-    [15/21] loss: 0.0814369097, time: 22.88
-    [16/21] loss: 0.0928150266, time: 23.07
-    [17/21] loss: 0.0717718676, time: 22.73
-    [18/21] loss: 0.0854445398, time: 22.25
-    [19/21] loss: 0.0697054118, time: 23.17
-    [20/21] loss: 0.0856528282, time: 22.19
-    [21/21] loss: 0.0637218356, time: 23.09
+    [1/51] loss: 0.2212930620, time: 16.54
+    [2/51] loss: 0.1497398019, time: 16.07
+    [3/51] loss: 0.1272169948, time: 16.68
+    [4/51] loss: 0.1251637340, time: 16.43
+    [5/51] loss: 0.0879302770, time: 16.39
+    [6/51] loss: 0.1058123261, time: 16.13
+    [7/51] loss: 0.1018903702, time: 16.48
+    [8/51] loss: 0.0895036981, time: 15.97
+    [9/51] loss: 0.0815045908, time: 16.25
+    [10/51] loss: 0.0910560489, time: 16.93
+    [11/51] loss: 0.1082131714, time: 15.86
+    [12/51] loss: 0.1175806150, time: 15.41
+    [13/51] loss: 0.1083476618, time: 15.45
+    [14/51] loss: 0.0968725160, time: 15.77
+    [15/51] loss: 0.1158992872, time: 15.46
+    [16/51] loss: 0.0937166214, time: 15.59
+    [17/51] loss: 0.0869348273, time: 15.73
+    [18/51] loss: 0.0821733996, time: 15.88
+    [19/51] loss: 0.0995057076, time: 16.75
+    [20/51] loss: 0.0742746666, time: 16.74
+    [21/51] loss: 0.0941771269, time: 16.18
+    [22/51] loss: 0.0744719505, time: 16.46
+    [23/51] loss: 0.0790197328, time: 16.40
+    [24/51] loss: 0.1034879759, time: 16.32
+    [25/51] loss: 0.0804327875, time: 16.49
+    [26/51] loss: 0.0879556686, time: 16.01
+    [27/51] loss: 0.0707675368, time: 16.07
+    [28/51] loss: 0.0851430595, time: 15.80
+    [29/51] loss: 0.1001406685, time: 15.85
+    [30/51] loss: 0.0902497023, time: 15.92
+    [31/51] loss: 0.0818073153, time: 15.80
+    [32/51] loss: 0.0612869859, time: 16.41
+    [33/51] loss: 0.0900170580, time: 15.98
+    [34/51] loss: 0.0633055940, time: 15.54
+    [35/51] loss: 0.0836695880, time: 15.45
+    [36/51] loss: 0.0871250182, time: 15.83
+    [37/51] loss: 0.0861932188, time: 15.51
+    [38/51] loss: 0.0700632483, time: 16.21
+    [39/51] loss: 0.0904704332, time: 16.46
+    [40/51] loss: 0.0577094220, time: 16.51
+    [41/51] loss: 0.0661170557, time: 16.41
+    [42/51] loss: 0.0869717970, time: 16.74
+    [43/51] loss: 0.0640795603, time: 16.89
+    [44/51] loss: 0.0521222800, time: 16.74
+    [45/51] loss: 0.0892381892, time: 16.20
+    [46/51] loss: 0.0754079074, time: 16.14
+    [47/51] loss: 0.0713761449, time: 16.34
+    [48/51] loss: 0.0755914599, time: 16.89
+    [49/51] loss: 0.0657814592, time: 16.58
+    [50/51] loss: 0.0926574618, time: 16.75
+    [51/51] loss: 0.0809435397, time: 16.27
 
 
 #### Results
@@ -259,6 +238,10 @@ The first line is the ground truth values and the line bellow is the decoded ver
 
 
 ![png](7.%20SOM%20%28Kohonen%20MAP%29_files/7.%20SOM%20%28Kohonen%20MAP%29_60_0.png)
+
+
+
+![png](7.%20SOM%20%28Kohonen%20MAP%29_files/7.%20SOM%20%28Kohonen%20MAP%29_60_1.png)
 
 
 Bellow i'm just loading the best saved model!
@@ -271,12 +254,16 @@ The first 3 lines are the ground truth of tests and the rest is de decoded versi
 ![png](7.%20SOM%20%28Kohonen%20MAP%29_files/7.%20SOM%20%28Kohonen%20MAP%29_66_0.png)
 
 
+
+![png](7.%20SOM%20%28Kohonen%20MAP%29_files/7.%20SOM%20%28Kohonen%20MAP%29_66_1.png)
+
+
 Let's use **t-SNE** to do a dimensionality reduction before pass to the SOM.
 
-    epoch [25/100] <=> Running time: 136.45961928367615
-    epoch [50/100] <=> Running time: 235.25226640701294
-    epoch [75/100] <=> Running time: 309.74252247810364
-    epoch [99/100] <=> Running time: 358.7991991043091
+    epoch [25/100] <=> Running time: 157.77867650985718
+    epoch [50/100] <=> Running time: 271.88222217559814
+    epoch [75/100] <=> Running time: 360.770840883255
+    epoch [99/100] <=> Running time: 427.18655252456665
 
 
 
@@ -293,14 +280,14 @@ Let's use **t-SNE** to do a dimensionality reduction before pass to the SOM.
 
 Results are not very good... but we can see some clusters in the reduced data... let's run the SOM in the original 10 dim latent space generated by the Autoencoder and see if it performs better!
 
-    epoch [25/200] <=> Running time: 170.36671614646912
-    epoch [50/200] <=> Running time: 311.32559609413147
-    epoch [75/200] <=> Running time: 420.83449244499207
-    epoch [100/200] <=> Running time: 500.99005818367004
-    epoch [125/200] <=> Running time: 553.0462336540222
-    epoch [150/200] <=> Running time: 604.6043317317963
-    epoch [175/200] <=> Running time: 635.0623729228973
-    epoch [199/200] <=> Running time: 664.0316405296326
+    epoch [25/200] <=> Running time: 291.0855915546417
+    epoch [50/200] <=> Running time: 511.19567370414734
+    epoch [75/200] <=> Running time: 668.1621434688568
+    epoch [100/200] <=> Running time: 781.1210885047913
+    epoch [125/200] <=> Running time: 863.6010956764221
+    epoch [150/200] <=> Running time: 947.708149433136
+    epoch [175/200] <=> Running time: 1031.3704252243042
+    epoch [199/200] <=> Running time: 1109.147782087326
 
 
 
