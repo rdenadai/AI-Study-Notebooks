@@ -1,7 +1,13 @@
+from enum import Enum
 import numpy as np
 import pandas as pd
 from scipy.special import expit as sigmoid, softmax
 from sklearn.metrics import mean_squared_log_error
+
+
+class NType(Enum):
+    REGRESSION = 1
+    CLASSIFICATION = 2
 
 
 class Activation:
@@ -68,7 +74,7 @@ class Dropout(Layer):
 
 class NeuralNetwork:
     def __init__(
-        self, layers, batch_size=32, lr=1e-1, decay=1e-4, ntype="classification"
+        self, layers, batch_size=32, lr=1e-1, decay=1e-4, ntype=NType.CLASSIFICATION
     ):
         self._layers = layers
         self._total_layers = len(layers)
@@ -89,13 +95,13 @@ class NeuralNetwork:
                 A = ac.forward(np.dot(A, w) + b, False)
             else:
                 A = ac.forward(np.dot(A, w) + b)
-        if self._ntype == "classification":
+        if self._ntype == NType.CLASSIFICATION:
             return np.argmax(A, axis=1)
         return A.ravel()
 
     def train(self, X, y, epochs=1500, show_iter_err=100):
         error = []
-        if self._ntype == "classification":
+        if self._ntype == NType.CLASSIFICATION:
             y = self._one_hot_encode(y)
         mb = np.ceil(X.shape[0] / self._batch_size).astype(np.int32)
         # Running epochs
@@ -107,7 +113,7 @@ class NeuralNetwork:
             for _ in range(mb):
                 # Mini batch crop
                 ini, end = r * self._batch_size, (r + 1) * self._batch_size
-                if self._ntype == "classification":
+                if self._ntype == NType.CLASSIFICATION:
                     batch_X, batch_y = X[ini:end, :], y[ini:end, :]
                 else:
                     batch_X, batch_y = X[ini:end, :], y[ini:end]
@@ -121,7 +127,7 @@ class NeuralNetwork:
 
             # Model avaliation
             ZL, AL = self._forward(X)
-            if self._ntype == "classification":
+            if self._ntype == NType.CLASSIFICATION:
                 loss = self._cross_entropy(AL[-1], y.copy()) + self._l2_reg()
                 error.append(loss)
                 pred = np.argmax(AL[-1], axis=1)
@@ -171,7 +177,7 @@ class NeuralNetwork:
 
     def _shuffle(self, X, y):
         permutation = np.random.permutation(X.shape[0])
-        if self._ntype == "classification":
+        if self._ntype == NType.CLASSIFICATION:
             return X[permutation, :], y[permutation, :]
         return X[permutation, :], y[permutation]
 
@@ -192,7 +198,7 @@ class NeuralNetwork:
             [np.zeros(w.shape) for w in self._W],
         )
 
-        if self._ntype == "classification":
+        if self._ntype == NType.CLASSIFICATION:
             Yh = AL[-1]
             org_delta = self._AC[-1].backward(ZL[-1])
             delta = self._gradient(Yh, y) * org_delta
