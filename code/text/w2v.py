@@ -110,12 +110,14 @@ class Word2Vec:
         elif self.model == Word2VecModel.CBOW:
             return -float(u[bx == 1]) + np.log(np.sum(np.exp(u + 1e-10)))
     
-    def __producer(self, m, X, y):
+    def __producer(self, m):
         for i in range(m):
-            yield X[i], np.asarray(y[i])
+            yield self.X[i], np.asarray(self.y[i])
     
     def train(self, X, y, epochs=150, show_iter_err=50):
         m, n = X.shape
+        self.X = X
+        self.y = y
         
         self.w1 = np.random.randn(n, self.lt) * np.sqrt(2 / (n + self.lt))
         self.w2 = np.random.randn(self.lt, n) * np.sqrt(2 / (self.lt + n))
@@ -127,20 +129,21 @@ class Word2Vec:
         for epoch in range(epochs):
             loss = 0
             weights = []
-            for bx, by in self.__producer(m, X, y):
-                # Forward
+            for bx, by in self.__producer(m):
                 if self.model == Word2VecModel.SKIP_GRAM:
-                    x = bx
-                elif self.model == Word2VecModel.CBOW:
-                    x = np.mean(by, axis=0)
-                h, u, yh = self.__forward(x)
-                # Backpropagation
-                if self.model == Word2VecModel.SKIP_GRAM:
+                    # Forward
+                    h, u, yh = self.__forward(bx)
+                    # Backpropagation
                     dZ2 = np.sum(gradient(m, yh, by), axis=0)
+                    # Update weights latter
+                    weights += [self.__backprop(dZ2, h, u, bx)]
                 elif self.model == Word2VecModel.CBOW:
+                    # Forward
+                    h, u, yh = self.__forward(np.mean(by, axis=0))
+                    # Backpropagation
                     dZ2 = gradient(m, yh, bx)
-                # Update weights latter
-                weights += [self.__backprop(dZ2, h, u, x)]
+                    # Update weights latter
+                    weights += [self.__backprop(dZ2, h, u, by)]
                 # Cost / Loss function
                 loss += self.__loss(u, bx, by)
             # Update weights
