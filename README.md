@@ -1,6 +1,8 @@
 # Artificial Intelligence
 
-Notebooks about Artificial Intelligence. Study cases and other playeable code justo to explore some interesting facts.
+Notebooks about Artificial Intelligence.
+
+Study cases and other playeable code justo to explore some interesting facts.
 
 ## Implementation details in this repo
 
