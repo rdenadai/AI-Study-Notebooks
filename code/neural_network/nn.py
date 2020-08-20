@@ -65,7 +65,7 @@ class Dropout(Layer):
     def forward(self, Z, training=True):
         if training:
             self._mask = (np.random.rand(*Z.shape) < self._prob) / self._prob
-            return self._activation.forward(Z.copy()) * self._mask
+            return self._activation.forward(Z.copy()) * self._mask / (1 - self._prob)
         return self._activation.forward(Z)
 
     def backward(self, Z):

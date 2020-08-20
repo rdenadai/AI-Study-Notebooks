@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 from sklearn.metrics.pairwise import cosine_similarity, euclidean_distances
-from sklearn.preprocessing import normalize, MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler
 from numba import jit, njit
 
 DETERMINISTIC = 42
@@ -188,7 +188,7 @@ class Word2Vec:
             words = list(zip(self.index_word.values(), sim.tolist()))
             words = sorted(words, key=lambda x: x[1], reverse=True)
             if metric == "cosine":
-                return words[1:topn+1]
+                return words[1 : topn + 1]
             return words[:topn]
         return None
 
