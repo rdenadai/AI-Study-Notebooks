@@ -11,7 +11,11 @@ class NType(Enum):
 
 
 class Activation:
-    pass
+    def forward(self, Z):
+        return Z
+
+    def backward(self, Z):
+        return Z
 
 
 class ReLU(Activation):
@@ -56,20 +60,20 @@ class Dense(Layer):
 
 class Dropout(Layer):
     def __init__(self, inputs, outputs, probability=0.5):
-        super().__init__(inputs, outputs, activation=ReLU)
+        super().__init__(inputs, outputs, activation=Activation)
         self._prob = probability
         self._mask = None
         self.activation = self
-        self._activation = ReLU()
 
     def forward(self, Z, training=True):
+        K = Z.copy()
         if training:
-            self._mask = (np.random.rand(*Z.shape) < self._prob) / self._prob
-            return self._activation.forward(Z.copy()) * self._mask / (1 - self._prob)
-        return self._activation.forward(Z)
+            self._mask = (np.random.rand(*K.shape) < self._prob) / self._prob
+            K *= self._mask
+        return K / (1 - self._prob)
 
     def backward(self, Z):
-        return self._activation.backward(Z.copy()) * self._mask
+        return Z.copy() * self._mask
 
 
 class NeuralNetwork:
