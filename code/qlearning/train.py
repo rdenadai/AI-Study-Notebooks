@@ -24,14 +24,16 @@ PLAYER_POS = {"x": 0, "y": 0}
 
 PLAYER = 1
 FOOD = 2
-ENEMY = 3
+WALL = 3
+ENEMY = 4
 
 
 def generate_random_action(x, y, size):
     return np.random.randint(N_ACTIONS)
 
 
-def move(x, y, size, action):
+def move(x, y, size, action, world):
+    ox, oy = x, y
     if action == 0:
         if y > 0:
             y -= 1
@@ -44,73 +46,76 @@ def move(x, y, size, action):
     elif action == 3:
         if x < size - 1:
             x += 1
+    # Hit a wall
+    if world[y, x] == WALL:
+        return ox, oy
     return x, y
 
 
 def generate_world():
-    F, E = FOOD, ENEMY
-    return np.array(
-        [
-            [0, 0, E, E, E, E, E, E, E, E, E, 0, 0, E, E, E, E],
-            [0, 0, 0, E, E, 0, E, E, E, 0, E, 0, 0, E, 0, E, E],
-            [E, 0, 0, F, 0, 0, 0, 0, E, 0, 0, 0, E, 0, 0, E, E],
-            [E, 0, 0, 0, 0, 0, 0, 0, E, 0, 0, E, E, 0, 0, 0, E],
-            [E, E, E, E, E, E, F, 0, E, 0, 0, E, E, 0, 0, E, E],
-            [E, E, E, E, E, 0, 0, 0, E, 0, 0, 0, 0, 0, 0, E, 0],
-            [E, E, E, E, 0, 0, 0, E, E, 0, F, 0, 0, 0, F, 0, E],
-            [E, 0, 0, 0, 0, 0, E, E, E, 0, 0, 0, 0, 0, 0, 0, 0],
-            [E, 0, F, 0, 0, E, E, E, 0, 0, 0, 0, 0, E, 0, 0, 0],
-            [E, 0, 0, 0, E, E, 0, 0, 0, 0, 0, E, 0, E, 0, F, E],
-            [E, 0, 0, E, E, E, 0, F, 0, 0, E, E, 0, E, 0, 0, 0],
-            [E, 0, 0, E, 0, 0, 0, 0, 0, 0, E, E, E, E, E, 0, 0],
-            [E, 0, 0, E, 0, 0, 0, 0, 0, 0, E, E, E, E, E, 0, 0],
-            [E, 0, 0, 0, 0, 0, 0, E, E, 0, E, E, F, 0, E, 0, 0],
-            [E, 0, 0, F, 0, E, 0, 0, E, 0, 0, E, 0, 0, E, 0, 0],
-            [E, 0, 0, 0, 0, E, 0, 0, E, 0, 0, E, 0, 0, 0, F, 0],
-            [E, 0, E, E, 0, E, 0, 0, E, 0, 0, E, E, 0, 0, 0, E],
-        ]
-    )
-    # Solved
-    # -----------------------
+    F, W, E = FOOD, WALL, ENEMY
     # return np.array(
     #     [
-    #         [0, 0, E, 0, E, E, E, E, E, E],
-    #         [0, 0, E, 0, 0, 0, 0, 0, 0, E],
-    #         [E, 0, 0, F, 0, E, 0, 0, 0, E],
-    #         [E, 0, 0, 0, E, E, 0, F, 0, E],
-    #         [F, E, E, E, E, 0, 0, 0, 0, 0],
-    #         [0, 0, E, E, 0, 0, 0, 0, E, 0],
-    #         [E, 0, 0, E, 0, F, E, 0, 0, 0],
-    #         [E, 0, 0, 0, 0, 0, E, 0, E, E],
-    #         [E, E, 0, F, 0, E, 0, 0, E, E],
-    #         [E, E, 0, 0, 0, E, 0, E, E, E],
-    #     ]
-    # )
-    # return np.array(
-    #     [
-    #         [0, 0, E, 0, E, E, E, E, E],
-    #         [0, 0, E, 0, 0, 0, 0, 0, E],
-    #         [E, 0, 0, F, 0, E, 0, 0, E],
-    #         [E, 0, 0, 0, E, E, 0, F, 0],
-    #         [F, E, E, E, E, 0, 0, 0, 0],
-    #         [0, 0, E, E, 0, 0, 0, E, 0],
-    #         [E, 0, 0, E, 0, F, E, 0, 0],
-    #         [E, 0, F, 0, 0, E, 0, 0, 0],
-    #         [E, E, 0, 0, 0, E, 0, 0, 0],
+    #         [0, 0, W, W, W, W, W, W, W, W, W, 0, 0, W, W, W, W],
+    #         [0, 0, 0, W, W, 0, W, W, W, 0, W, 0, 0, W, 0, W, W],
+    #         [W, 0, 0, F, 0, 0, 0, 0, W, 0, 0, 0, W, 0, 0, W, W],
+    #         [W, 0, 0, 0, 0, 0, 0, 0, W, 0, 0, W, W, 0, 0, 0, W],
+    #         [W, W, W, W, W, W, F, 0, W, 0, 0, W, W, 0, 0, W, W],
+    #         [W, W, W, W, W, 0, 0, 0, W, 0, 0, 0, 0, 0, 0, W, 0],
+    #         [W, W, W, W, 0, 0, 0, W, W, 0, F, 0, 0, 0, F, 0, W],
+    #         [W, 0, 0, 0, 0, 0, W, W, W, 0, 0, 0, 0, 0, 0, 0, 0],
+    #         [W, 0, F, 0, 0, W, W, W, 0, 0, 0, 0, 0, W, 0, 0, 0],
+    #         [W, 0, 0, 0, W, W, 0, 0, 0, 0, 0, W, 0, W, 0, F, W],
+    #         [W, 0, 0, W, W, W, 0, F, 0, 0, W, W, 0, W, 0, 0, 0],
+    #         [W, 0, 0, W, 0, 0, 0, 0, 0, 0, W, W, W, W, W, 0, 0],
+    #         [W, 0, 0, W, 0, 0, 0, 0, 0, 0, W, W, W, W, W, 0, 0],
+    #         [W, 0, 0, 0, 0, 0, 0, W, W, 0, W, W, F, 0, W, 0, 0],
+    #         [W, 0, 0, F, 0, W, 0, 0, W, 0, 0, W, 0, 0, W, 0, 0],
+    #         [W, 0, 0, 0, 0, W, 0, 0, W, 0, 0, W, 0, 0, 0, F, 0],
+    #         [W, 0, W, W, 0, W, 0, 0, W, 0, 0, W, W, 0, 0, 0, W],
     #     ]
     # )
     # Solved
     # -----------------------
     # return np.array(
     #     [
-    #         [0, 0, E, 0, E, 0, E, 0],
-    #         [0, 0, E, 0, 0, F, 0, 0],
-    #         [0, 0, F, 0, 0, E, 0, F],
-    #         [E, 0, 0, 0, E, E, 0, 0],
-    #         [F, E, 0, E, 0, 0, 0, 0],
-    #         [0, 0, E, 0, 0, F, 0, E],
-    #         [0, 0, 0, 0, 0, 0, E, 0],
-    #         [0, 0, F, 0, 0, E, 0, 0],
+    #         [0, 0, W, 0, W, W, W, W, W, W],
+    #         [0, 0, W, 0, 0, 0, 0, 0, 0, W],
+    #         [W, 0, 0, F, 0, W, 0, 0, 0, W],
+    #         [W, 0, 0, 0, W, W, 0, F, 0, W],
+    #         [F, W, W, W, W, 0, 0, 0, 0, 0],
+    #         [0, 0, W, W, 0, 0, 0, 0, W, 0],
+    #         [W, 0, 0, W, 0, F, W, 0, 0, 0],
+    #         [W, 0, 0, 0, 0, 0, W, 0, W, W],
+    #         [W, W, 0, F, 0, W, 0, 0, W, W],
+    #         [W, W, 0, 0, 0, W, 0, W, W, W],
+    #     ]
+    # )
+    # return np.array(
+    #     [
+    #         [0, 0, W, 0, W, W, W, W, W],
+    #         [0, 0, W, 0, 0, 0, 0, 0, W],
+    #         [W, 0, 0, F, 0, W, 0, 0, W],
+    #         [W, 0, 0, 0, W, W, 0, F, 0],
+    #         [F, W, W, W, W, 0, 0, 0, 0],
+    #         [0, 0, W, W, 0, 0, 0, W, 0],
+    #         [W, 0, 0, W, 0, F, W, 0, 0],
+    #         [W, 0, F, 0, 0, W, 0, 0, 0],
+    #         [W, W, 0, 0, 0, W, 0, 0, 0],
+    #     ]
+    # )
+    # Solved
+    # -----------------------
+    # return np.array(
+    #     [
+    #         [0, 0, W, 0, W, 0, W, 0],
+    #         [0, 0, W, 0, 0, F, 0, 0],
+    #         [0, 0, F, 0, 0, W, 0, F],
+    #         [W, 0, 0, 0, W, W, 0, 0],
+    #         [F, W, 0, W, 0, 0, 0, 0],
+    #         [0, 0, W, 0, 0, F, 0, W],
+    #         [0, 0, 0, 0, 0, 0, W, 0],
+    #         [0, 0, F, 0, 0, W, 0, 0],
     #     ]
     # )
     # Solved
@@ -118,10 +123,10 @@ def generate_world():
     # return np.array(
     #     [
     #         [0, 0, F, 0, 0, 0],
-    #         [E, E, 0, 0, E, 0],
-    #         [0, 0, 0, F, E, E],
-    #         [E, 0, E, 0, E, 0],
-    #         [0, F, 0, E, 0, F],
+    #         [W, W, 0, 0, W, 0],
+    #         [0, 0, 0, F, W, W],
+    #         [W, 0, W, 0, W, 0],
+    #         [0, F, 0, W, 0, F],
     #         [0, 0, 0, 0, 0, 0],
     #     ]
     # )
@@ -129,24 +134,24 @@ def generate_world():
     # -----------------------
     # return np.array(
     #     [
-    #         [0, 0, E, F, 0, E],
-    #         [0, E, E, 0, 0, 0],
-    #         [F, 0, E, 0, F, 0],
-    #         [E, F, 0, E, 0, E],
-    #         [E, 0, 0, 0, 0, 0],
-    #         [E, 0, 0, F, 0, 0],
+    #         [0, 0, W, F, 0, W],
+    #         [0, W, W, 0, 0, 0],
+    #         [F, 0, W, 0, F, 0],
+    #         [W, F, 0, W, 0, W],
+    #         [W, 0, 0, 0, 0, 0],
+    #         [W, 0, 0, F, 0, 0],
     #     ]
     # )
     # Solved
     # -----------------------
     # return np.array(
     #     [
-    #         [0, 0, 0, F, 0, E],
-    #         [E, E, E, 0, 0, 0],
-    #         [F, 0, E, 0, F, 0],
-    #         [E, F, 0, E, 0, E],
-    #         [E, 0, 0, 0, 0, 0],
-    #         [E, 0, 0, F, 0, 0],
+    #         [0, 0, 0, F, 0, W],
+    #         [W, W, W, 0, 0, 0],
+    #         [F, 0, W, 0, F, 0],
+    #         [W, F, 0, W, 0, W],
+    #         [W, 0, 0, 0, 0, 0],
+    #         [W, 0, 0, F, 0, 0],
     #     ]
     # )
     # Solved
@@ -154,18 +159,18 @@ def generate_world():
     # return np.array(
     #     [
     #         [0, 0, 0, F, 0],
-    #         [E, 0, E, 0, 0],
+    #         [W, 0, W, 0, 0],
     #         [0, 0, F, 0, 0],
-    #         [E, F, E, 0, 0],
-    #         [E, 0, 0, F, E],
+    #         [W, F, W, 0, 0],
+    #         [W, 0, 0, F, W],
     #     ]
     # )
     # Solved
     # -----------------------
-    # return np.array([[0, 0, 0, F], [E, 0, E, 0], [0, 0, F, 0], [E, F, E, 0]])
+    # return np.array([[0, 0, 0, F], [W, 0, W, 0], [0, 0, F, 0], [W, F, W, 0]])
     # Solved
     # -----------------------
-    # return np.array([[0, 0, E], [E, 0, F], [F, 0, 0]])
+    return np.array([[0, 0, W], [W, 0, F], [F, 0, 0]])
 
 
 if __name__ == "__main__":
@@ -178,7 +183,7 @@ if __name__ == "__main__":
                 Q = pickle.load(f)
         except Exception as e:
             extra_state = len(zero_world[zero_world == FOOD])
-            # Q = np.zeros((size ** 2 + extra_state, N_ACTIONS))
+            # Q = np.zeros((size ** 2 + extra_statW, N_ACTIONS))
             Q = np.random.uniform(
                 low=-1, high=1, size=(size ** 2 + extra_state, N_ACTIONS)
             )
@@ -188,7 +193,7 @@ if __name__ == "__main__":
         exploit = False
         for episode in range(EPISODES):
             PLAYER_POS = {"x": 0, "y": 0}
-            state, action, t_reward, reward = 0, 0, 0, 0
+            statW, action, t_reward, reward = 0, 0, 0, 0
             win = False
             stop = False
             world = np.copy(zero_world)
@@ -205,12 +210,14 @@ if __name__ == "__main__":
 
                 # Action
                 if exploit:
-                    action = randargmax(Q[state, :])
+                    action = randargmax(Q[statW, :])
                 else:
                     action = generate_random_action(x, y, size)
                     if np.random.uniform(0, 1) > EPSILON:
-                        action = randargmax(Q[state, :])
-                x, y = move(x, y, size, action)
+                        action = randargmax(Q[statW, :])
+                print(x, y)
+                x, y = move(x, y, size, action, world)
+                print(x, y)
 
                 # New state
                 new_state = x + (y * size)
@@ -242,7 +249,7 @@ if __name__ == "__main__":
 
                 # Update Q-Table
                 target = LEARNING_RATE * (reward + GAMMA * np.max(Q[new_state, :]))
-                Q[state, action] = (1 - LEARNING_RATE) * Q[state, action] + target
+                Q[statW, action] = (1 - LEARNING_RATE) * Q[statW, action] + target
 
                 # Pass new state
                 state = new_state

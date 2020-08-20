@@ -13,12 +13,15 @@ PLAYER_POS = {"x": 0, "y": 0}
 
 PLAYER = 1
 FOOD = 2
-ENEMY = 3
+WALL = 3
+ENEMY = 4
+
 
 WIN_SIZE = (150, 150)
 
 
-def move(x, y, size, action):
+def move(x, y, size, action, world):
+    ox, oy = x, y
     if action == 0:
         if y > 0:
             y -= 1
@@ -31,13 +34,16 @@ def move(x, y, size, action):
     elif action == 3:
         if x < size - 1:
             x += 1
+    if world[y, x] == WALL:
+        return ox, oy
     return x, y
 
 
 def get_pygame_surface(world):
     world[world == PLAYER] = 255
     world[world == FOOD] = 160
-    world[world == ENEMY] = 50
+    world[world == WALL] = 50
+    world[world == ENEMY] = 100
     world = np.dstack([world for _ in range(3)]).astype(np.uint8)
     image = Image.fromarray(world, "RGB")
     image = image.resize(WIN_SIZE)
@@ -81,7 +87,7 @@ if __name__ == "__main__":
 
             # Action
             action = randargmax(Q[state, :])
-            x, y = move(x, y, size, action)
+            x, y = move(x, y, size, action, world)
 
             # Collision
             if world[y, x] == FOOD:
